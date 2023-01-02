@@ -1,0 +1,3 @@
+D:/daneshgah/mabani/project/cmake-build-debug/CMakeFiles/project.dir
+D:/daneshgah/mabani/project/cmake-build-debug/CMakeFiles/edit_cache.dir
+D:/daneshgah/mabani/project/cmake-build-debug/CMakeFiles/rebuild_cache.dir
