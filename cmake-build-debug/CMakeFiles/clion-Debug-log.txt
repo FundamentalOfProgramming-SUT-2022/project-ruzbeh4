@@ -1,0 +1,5 @@
+/home/ruzbeh/snap/JetBrains.CLion.2022.3.1/clion-2022.3.1/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" -S /home/ruzbeh/CLionProjects/project/project-ruzbeh4 -B /home/ruzbeh/CLionProjects/project/project-ruzbeh4/cmake-build-debug
+CMake Error: CMake was unable to find a build program corresponding to "Unix Makefiles".  CMAKE_MAKE_PROGRAM is not set.  You probably need to select a different build tool.
+CMake Error: CMAKE_C_COMPILER not set, after EnableLanguage
+-- Configuring incomplete, errors occurred!
+See also "/home/ruzbeh/CLionProjects/project/project-ruzbeh4/cmake-build-debug/CMakeFiles/CMakeOutput.log".
