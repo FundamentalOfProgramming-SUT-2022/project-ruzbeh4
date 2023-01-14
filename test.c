@@ -1,32 +1,32 @@
+////
+//// Created by ruzbe on 1/2/2023.
+////
 //
-// Created by ruzbe on 1/2/2023.
+//#include <conio.h>
+//#include <sys/types.h>
+//#include <sys/stat.h>
+//#include <unistd.h>
+//#include <stdio.h>
+//#include <stdlib.h>
 //
-
-#include <conio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-void main()
-{
-    int check;
-    char* dirname = "../root/new";
-
-
-    check = mkdir(dirname);
-
-    // check if directory is created or not
-    if (!check)
-        printf("Directory created\n");
-    else {
-        printf("Unable to create directory\n");
-        exit(1);
-    }
-
-    getch();
-
-    system("dir");
-    getch();
-}
+//void main()
+//{
+//    int check;
+//    char* dirname = "../root/new";
+//
+//
+//    check = mkdir(dirname);
+//
+//    // check if directory is created or not
+//    if (!check)
+//        printf("Directory created\n");
+//    else {
+//        printf("Unable to create directory\n");
+//        exit(1);
+//    }
+//
+//    getch();
+//
+//    system("dir");
+//    getch();
+//}
