@@ -93,11 +93,13 @@ void get_str(char input_str[] , int flag){
 void insert_str_infile(char real_address[50], char input_str[100] , int line , int pos){
     FILE * file;
     file = fopen(real_address, "r+");
-    char tmp[1000];
-    for (int i = 0; 1 ; ++i) {
-        fscanf(file , "%c" , &tmp[i]);
-        if(tmp[i] == EOF)break;
+    char tmp[1000] ={'\0'};
+    int j = 0;
+    for (; 1 ; ++j) {
+        tmp[j]= fgetc(file);
+        if(tmp[j] == EOF)break;
     }
+    tmp[j] = '\0';
     fclose(file);
     int i = 0;
     for (; tmp[i] != EOF ; ++i) {
@@ -187,6 +189,38 @@ void insertstr(){
 
 
 }
+void cat(){
+    char subcommand[10];
+    char real_address[50] = "../";
+    scanf("%s" , subcommand);
+
+    if (!strcmp(subcommand, "--file")){
+
+        get_address(real_address);
+        if (access(real_address, F_OK) != 0) {
+            invalid_input();
+            printf("no such file or directory\n");
+            return;
+        }
+
+
+        FILE * file;
+        file = fopen(real_address, "r+");
+        char tmp ='\0';
+        int j = 0;
+        for (; 1 ; ++j) {
+            tmp= fgetc(file);
+            if(tmp == EOF)break;
+            printf("%c" , tmp);
+        }
+        fclose(file);
+
+    } else {
+        invalid_input();
+        printf("invalid arguments for createfile\n");
+    }
+
+}
 void get_command() {
     char command[30];
     while (1) {
@@ -198,7 +232,7 @@ void get_command() {
         } else if (!strcmp(command, "insertstr")) {
             insertstr();
         } else if (!strcmp(command, "cat")) {
- //           cat();
+            cat();
 
         } else if (!strcmp(command, "removestr")) {
 
