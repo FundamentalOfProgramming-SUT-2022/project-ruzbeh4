@@ -89,11 +89,10 @@ void get_str(char input_str[] , int flag){
         }
     }
 }
-
-void insert_str_infile(char real_address[50], char input_str[100] , int line , int pos){
+char * create_tmp_file(char real_address[]){
     FILE * file;
     file = fopen(real_address, "r+");
-    char tmp[1000] ={'\0'};
+    char *tmp =(char *) calloc(1000 , sizeof(char ));
     int j = 0;
     for (; 1 ; ++j) {
         tmp[j]= fgetc(file);
@@ -101,6 +100,11 @@ void insert_str_infile(char real_address[50], char input_str[100] , int line , i
     }
     tmp[j] = '\0';
     fclose(file);
+    return tmp;
+}
+int access_to_position(char *tmp , int line , int pos){
+    if(line == 1)
+        pos--;
     int i = 0;
     for (; tmp[i] != EOF ; ++i) {
         if(tmp[i] == '\n')
@@ -109,9 +113,38 @@ void insert_str_infile(char real_address[50], char input_str[100] , int line , i
             break;
     }
     i+= (pos+1);
+    return i;
+}
+
+void insert_str_infile(char real_address[50], char input_str[100] , int line , int pos){
+
+//    FILE * file;
+//    file = fopen(real_address, "r+");
+//    char tmp[1000] ={'\0'};
+//    int j = 0;
+//    for (; 1 ; ++j) {
+//        tmp[j]= fgetc(file);
+//        if(tmp[j] == EOF)break;
+//    }
+//    tmp[j] = '\0';
+//    fclose(file);
+    char *tmp = create_tmp_file(real_address);
+    int i = access_to_position( tmp , line , pos);
+
+//    if(line == 1)
+//        pos--;
+//    int i = 0;
+//    for (; tmp[i] != EOF ; ++i) {
+//        if(tmp[i] == '\n')
+//            line --;
+//        if(line == 1)
+//            break;
+//    }
+//    i+= (pos+1);
+//    printf("$ %d $" , i);
     memmove(&tmp[i+ strlen(input_str)] ,&tmp[i] , strlen(tmp) - i);
     memcpy(&tmp[i] , input_str , strlen(input_str));
-    file = fopen(real_address, "w+");
+    FILE * file = fopen(real_address, "w+");
     fputs(tmp, file);
     fclose(file);
 }
@@ -219,8 +252,62 @@ void cat(){
         invalid_input();
         printf("invalid arguments for createfile\n");
     }
-
 }
+
+void removestr(){
+    char subcommand[10];
+    char first , direction ;
+    char real_address[50] = "../";
+    int size ,dir;
+    int line , pos;
+    for (int i = 0; i < 3; ++i) {
+        scanf(" %c" , &first);
+        if(first != '-'){
+            invalid_input();
+            printf("invalid arguments for insertstr\n");
+            return;
+        }
+        scanf("%s", subcommand);
+
+        if (!strcmp(subcommand, "-file")) {
+            get_address(real_address);
+            if (access(real_address, F_OK) != 0) {
+                invalid_input();
+                printf("no such file or directory\n");
+                return;
+            }
+
+        } else if (!strcmp(subcommand, "-size")) {
+            scanf("%d" ,&size);
+        } else if (!strcmp(subcommand, "-pos")) {
+            scanf(" %d,%d" , &line,&pos);
+        }else {
+            invalid_input();
+            printf("invalid arguments for insertstr\n");
+        }
+
+    }
+
+    char *tmp = create_tmp_file(real_address);
+    int i = access_to_position( tmp , line , pos);
+
+    scanf(" -%c" , &direction);
+    if(direction == 'f'){
+        memmove(&tmp[i] ,&tmp[i+size] , strlen(tmp) - i -size);
+    } else if(direction == 'b'){
+        memmove(&tmp[i-size] ,&tmp[i] , strlen(tmp) - i);
+    } else{
+        invalid_input();
+    }
+
+ //   memmove(&tmp[i+ strlen(input_str)] ,&tmp[i] , strlen(tmp) - i);
+ //   memcpy(&tmp[i] , input_str , strlen(input_str));
+    FILE * file = fopen(real_address, "w+");
+    fputs(tmp, file);
+    fclose(file);
+    printf("done\n");
+}
+
 void get_command() {
     char command[30];
     while (1) {
@@ -235,7 +322,7 @@ void get_command() {
             cat();
 
         } else if (!strcmp(command, "removestr")) {
-
+            removestr();
         } else if (!strcmp(command, "copystr")) {
 
         } else if (!strcmp(command, "cutstr")) {
@@ -266,22 +353,6 @@ void get_command() {
 
 int main(){
     get_command();
-    char a[30];
-
-
-//        FILE * fp;
-//
-//        fp = fopen ("../root/file.txt", "r+");
-//        fprintf(fp, "%s %s %s %d", "We", "are", "in", 2012);
-//
-//        fclose(fp);
-//        fp = fopen("../root/file.txt","r+");
-//        fscanf(fp , "%s" , a);
-//        fclose(fp);
-//
-//        printf("%s", a);
-//
-//
 
     return(0);
 
