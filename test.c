@@ -12,12 +12,18 @@
 void maint()
 {
     int check;
-    char* dirname = "./root/2.txt";
+    int size = 0;
+    char* dirname = "../root/2.txt";
+    char *tmp;
     FILE * ptr;
-    ptr = fopen(dirname , "w");
-    if (ptr == NULL)
-        printf("no");
-    fputs("hello" , ptr);
+    ptr = fopen(dirname , "a+");
+//    if (ptr == NULL)
+//        printf("no");
+    rewind(ptr);
+    getline(&tmp,&size,ptr);
+    getline(&tmp,&size,ptr);
+   fseek(ptr, 20 , 2);
+    fprintf(ptr , "$$$");
     fclose(ptr);
 //    check = mkdir(dirname ,);
 //

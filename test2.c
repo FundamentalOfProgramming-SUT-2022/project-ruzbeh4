@@ -8,8 +8,8 @@
 #include "unistd.h"
 
 int maint2(){
-    char real_address[50] = "../root/1/2/afd/kl/kj";
-
+    char *real_address= "../root/1/2/af";
+    real_address[14] = 'p';
     int result = mkdir(real_address, 0777);
     printf("%d" , result);
     if (access(real_address , F_OK) == 0) {
