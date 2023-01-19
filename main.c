@@ -118,30 +118,9 @@ int access_to_position(char *tmp , int line , int pos){
 
 void insert_str_infile(char real_address[50], char input_str[100] , int line , int pos){
 
-//    FILE * file;
-//    file = fopen(real_address, "r+");
-//    char tmp[1000] ={'\0'};
-//    int j = 0;
-//    for (; 1 ; ++j) {
-//        tmp[j]= fgetc(file);
-//        if(tmp[j] == EOF)break;
-//    }
-//    tmp[j] = '\0';
-//    fclose(file);
     char *tmp = create_tmp_file(real_address);
     int i = access_to_position( tmp , line , pos);
 
-//    if(line == 1)
-//        pos--;
-//    int i = 0;
-//    for (; tmp[i] != EOF ; ++i) {
-//        if(tmp[i] == '\n')
-//            line --;
-//        if(line == 1)
-//            break;
-//    }
-//    i+= (pos+1);
-//    printf("$ %d $" , i);
     memmove(&tmp[i+ strlen(input_str)] ,&tmp[i] , strlen(tmp) - i);
     memcpy(&tmp[i] , input_str , strlen(input_str));
     FILE * file = fopen(real_address, "w+");
@@ -153,9 +132,9 @@ void remove_str_fromfile(char real_address[50], int size, int line , int pos , c
     int i = access_to_position( tmp , line , pos);
 
     if(direction == 'f'){
-        memmove(&tmp[i] ,&tmp[i+size] , strlen(tmp) - i -size);
+        memmove(&tmp[i] ,&tmp[i+size] , strlen(tmp) - i -size + 1 );
     } else if(direction == 'b'){
-        memmove(&tmp[i-size] ,&tmp[i] , strlen(tmp) - i);
+        memmove(&tmp[i-size] ,&tmp[i] , strlen(tmp) - i + 1 );
     } else{
         invalid_input();
         printf("no such option for this command\n");
@@ -254,7 +233,6 @@ void insertstr(){
 
     printf("done\n");
 
-
 }
 void cat(){
     char subcommand[10];
@@ -335,7 +313,43 @@ void remove_or_copy_or_cutstr(int specifier){  // 0 for remove 1 for copy 2 for 
 
 }
 
+void pastestr(){
+    char subcommand[10];
+    char tmp ;
+    char real_address[50] = "../";
+    int line , pos;
+    for (int i = 0; i < 2 ; ++i) {
 
+        scanf(" %c" , &tmp);
+        if(tmp != '-'){
+            invalid_input();
+            printf("invalid arguments for insertstr\n");
+            return;
+        }
+        scanf("%s", subcommand);
+
+        if (!strcmp(subcommand, "-file")) {
+            get_address(real_address);
+            if (access(real_address, F_OK) != 0) {
+                invalid_input();
+                printf("no such file or directory\n");
+                return;
+            }
+
+        }else if (!strcmp(subcommand, "-pos")) {
+            scanf(" %d,%d" , &line,&pos);
+        }
+        else {
+            invalid_input();
+            printf("invalid arguments for insertstr\n");
+        }
+    }
+    char *saved_data = create_tmp_file("./clipboard.txt");
+    insert_str_infile(real_address , saved_data , line , pos);
+
+    printf("Done\n");
+
+}
 void get_command() {
     char command[30];
     while (1) {
@@ -348,7 +362,6 @@ void get_command() {
             insertstr();
         } else if (!strcmp(command, "cat")) {
             cat();
-
         } else if (!strcmp(command, "removestr")) {
             remove_or_copy_or_cutstr(0);
         } else if (!strcmp(command, "copystr")) {
@@ -356,7 +369,7 @@ void get_command() {
         } else if (!strcmp(command, "cutstr")) {
             remove_or_copy_or_cutstr(2);
         } else if (!strcmp(command, "pastestr")) {
-
+            pastestr();
         } else if (!strcmp(command, "find")) {
 
         } else if (!strcmp(command, "replace")) {
