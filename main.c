@@ -5,7 +5,8 @@
 #include "unistd.h"
 #include "sys/types.h"
 #include "sys/stat.h"
-
+#include "dirent.h"
+#include "tree.h"
 void invalid_input(){
     char tmp;
     char tmp2[100];
@@ -44,19 +45,20 @@ void get_address(char real_address[]){
     }
     strcat(real_address , file_address);
 }
-void get_str(char input_str[] , int flag){
+void get_str(char input_str[] ){
     char tmp;
-    int special_chars_counter = 0;
+
     scanf(" %c" , &tmp);
 
     if(tmp == '"') {
-        flag = 1;
-        scanf("%[^-]s", input_str);
-        char *last = strrchr(input_str, '"');
-        *last = '\0';
+        int j = 0;
+        for (; 1 ; ++j) {
+            input_str[j]= fgetc(stdin);
+            if(input_str[j] == '\"' && input_str[j-1] != '\\')break;
+        }
+        input_str[j] = '\0';
     }
     else {
-        flag = 0;
         input_str[0] = tmp;
         input_str++;
         scanf("%s", input_str);
@@ -89,19 +91,34 @@ void get_str(char input_str[] , int flag){
         }
     }
 }
+char * last_version_address(char real_address[]){
+    char * version_address = calloc(50 ,sizeof(char ));
+    strcpy(version_address , real_address);
+    char *filename = strrchr( version_address, '/');
+    filename++;
+    memmove(&filename[1],&filename[0], strlen(filename));
+    filename[0] = '.';
+    return version_address;
+}
 char * create_tmp_file(char real_address[]){
+    char *version_address = last_version_address(real_address);
     FILE * file;
+    FILE * last_version;
+    last_version = fopen(version_address, "w");
     file = fopen(real_address, "r+");
     char *tmp =(char *) calloc(10000 , sizeof(char ));
     int j = 0;
     for (; 1 ; ++j) {
         tmp[j]= fgetc(file);
         if(tmp[j] == EOF)break;
+        fputc(tmp[j] , last_version);
     }
-    tmp[j] = '\0';
+ //   tmp[j] = '\0';
     fclose(file);
+    fclose(last_version);
     return tmp;
 }
+
 int access_to_position(char *tmp , int line , int pos){
     if(line == 1)
         pos--;
@@ -119,10 +136,12 @@ int access_to_position(char *tmp , int line , int pos){
 void insert_str_infile(char real_address[50], char input_str[100] , int line , int pos){
 
     char *tmp = create_tmp_file(real_address);
+  //  last_version_address(real_address);
     int i = access_to_position( tmp , line , pos);
 
     memmove(&tmp[i+ strlen(input_str)] ,&tmp[i] , strlen(tmp) - i);
     memcpy(&tmp[i] , input_str , strlen(input_str));
+    tmp[strlen(tmp) - 1] = '\0';
     FILE * file = fopen(real_address, "w+");
     fputs(tmp, file);
     fclose(file);
@@ -139,7 +158,7 @@ void remove_str_fromfile(char real_address[50], int size, int line , int pos , c
         invalid_input();
         printf("no such option for this command\n");
     }
-
+    tmp[strlen(tmp) - 1] = '\0';
     FILE * file = fopen(real_address, "w");
     fputs(tmp, file);
     fclose(file);
@@ -157,6 +176,7 @@ void copy_str_fromfile(char real_address[50], int size, int line , int pos , cha
     } else{
         invalid_input();
     }
+    tmp[strlen(tmp) ] = '\0';
     FILE * clipboard = fopen("./clipboard.txt" , "w");
     fputs(saved_data , clipboard);
     fclose(clipboard);
@@ -195,14 +215,12 @@ void create_file(){
 void insertstr(){
     char subcommand[10];
     char tmp ;
-    int flag = 0;
     char real_address[50] = "../";
     char input_str[100];
     int line , pos;
     for (int i = 0; i < 3; ++i) {
-        if(!flag)
-            scanf(" ");
-        scanf("%c" , &tmp);
+
+        scanf(" %c" , &tmp);
         if(tmp != '-'){
             invalid_input();
             printf("invalid arguments for insertstr\n");
@@ -219,7 +237,7 @@ void insertstr(){
             }
 
         } else if (!strcmp(subcommand, "-str")) {
-            get_str(input_str , flag);
+            get_str(input_str );
         } else if (!strcmp(subcommand, "-pos")) {
             scanf(" %d,%d" , &line,&pos);
         }
@@ -345,9 +363,235 @@ void pastestr(){
         }
     }
     char *saved_data = create_tmp_file("./clipboard.txt");
+    saved_data[strlen(saved_data) -1] = '\0';
     insert_str_infile(real_address , saved_data , line , pos);
 
     printf("Done\n");
+
+}
+void find_by_words(int specifier , int size){
+    printf("w: %d ,%d" , specifier , size);
+}
+void find_by_chars(int specifier , int size){
+    printf("c: %d ,%d" , specifier , size);
+}
+void find(){
+    char subcommand[10];
+    char options[30];
+    char tmp ;
+    int word_flag = 0, options_specifier = 0 , at_size = 0;
+    char real_address[50] = "../";
+    char input_str[100];
+    for (int i = 0; i < 2; ++i) {
+
+        scanf(" %c" , &tmp);
+        if(tmp != '-'){
+            invalid_input();
+            printf("invalid arguments for find\n");
+            return;
+        }
+        scanf("%s", subcommand);
+
+        if (!strcmp(subcommand, "-file")) {
+            get_address(real_address);
+            if (access(real_address, F_OK) != 0) {
+                invalid_input();
+                printf("no such file or directory\n");
+                return;
+            }
+
+        } else if (!strcmp(subcommand, "-str")) {
+            get_str(input_str );
+        }else {
+            invalid_input();
+            printf("invalid arguments for find\n");
+        }
+    }
+    scanf("%[^'\n']s" , options);
+
+    const char s[2] = "-";
+    char *token;
+    token = strtok(options, s);
+    while( token != NULL ) {
+        if(token[strlen(token) -  1] == ' ')
+            token[strlen(token) -  1] = '\0';
+        if (!strcmp(token, "count")){
+            if(options_specifier == 0)
+                options_specifier = 1;
+            else {
+                invalid_input();
+                printf("logical error\n");
+                return;
+            }
+        } else if(token[0]=='a' && token[1] == 't'){
+            if(options_specifier == 0)
+                options_specifier = 2;
+            else {
+                invalid_input();
+                printf("logical error\n");
+                return;
+            }
+            sscanf(token, "at %d" , &at_size);
+        }else if(!strcmp(token, "all")) {
+            if(options_specifier == 0)
+                options_specifier = 3;
+            else {
+                invalid_input();
+                printf("logical error\n");
+                return;
+            }
+        }else if(!strcmp(token, "byword"))
+            word_flag =1;
+
+        token = strtok(NULL, s);
+    }
+    if(word_flag)
+        find_by_words(options_specifier , at_size);
+    else
+        find_by_chars(options_specifier , at_size);
+
+}
+void undo(){
+    char subcommand[10];
+    char first ;
+    char real_address[50] = "../";
+
+        scanf(" %c" , &first);
+        if(first != '-'){
+            invalid_input();
+            printf("invalid arguments for insertstr\n");
+            return;
+        }
+        scanf("%s", subcommand);
+
+        if (!strcmp(subcommand, "-file")) {
+            get_address(real_address);
+            if (access(real_address, F_OK) != 0) {
+                invalid_input();
+                printf("no such file or directory\n");
+                return;
+            }
+        }else {
+            invalid_input();
+            printf("invalid arguments for insertstr\n");
+        }
+    char * version_address = last_version_address(real_address);
+    char * last_data = create_tmp_file(version_address);
+    create_tmp_file(real_address);
+    last_data[strlen(last_data) - 1] = '\0';
+    FILE *file = fopen(real_address , "w");
+    fputs(last_data , file);
+    fclose(file);
+    char * wrong_file = last_version_address(version_address);
+    remove(wrong_file);
+    printf("Done!\n");
+}
+void compare_line_by_line(int specifier , char address1[] , char  address2[]){
+    char * file1 = create_tmp_file(address1);
+    file1[strlen(file1) -1] = '\0';
+    char * file2 = create_tmp_file(address2);
+    file2[strlen(file2) -1] = '\0';
+    const char s[2] = "\n\0";
+    char * file1_token;
+    char * file2_token;
+    file1_token = strsep(&file1, s);
+    file2_token = strsep(&file2 , s);
+    for (int i = 1; file1_token != NULL && file2_token != NULL ; i++) {
+        if (strcmp(file1_token, file2_token)){
+            printf("######### line %d #########\n%s\n%s\n" , i , file1_token, file2_token );
+        }
+        file1_token = strsep(&file1, s);
+        file2_token = strsep(&file2, s);
+    }
+    if(file1_token != NULL){
+        printf("######## first file is longer ########\n");
+        while (file1_token != NULL){
+            printf("%s\n" , file1_token);
+            file1_token = strsep(&file1 , s);
+        }
+    }
+    if(file2_token != NULL){
+        printf("!!!!!!!!! second file is longer !!!!!!!!!\n");
+        while (file2_token != NULL){
+            printf("%s\n" , file2_token);
+            file2_token = strsep(&file2 , s);
+        }
+    }
+}
+void compare(){
+    char subcommand[10];
+    char options[30];
+    int options_specifier = 0;
+    char real_address1[50] = "../";
+    char real_address2[50] = "../";
+
+    scanf("%s", subcommand);
+
+    if (!strcmp(subcommand, "--files")) {
+        get_address(real_address1);
+        get_address(real_address2);
+        if (access(real_address1, F_OK) != 0 || access(real_address2, F_OK) != 0 ) {
+            invalid_input();
+            printf("no such file or directory\n");
+            return;
+        }
+    }else {
+        invalid_input();
+        printf("invalid arguments for compare\n");
+    }
+    scanf("%[^'\n']s" , options);
+
+    const char s[2] = "-";
+    char *token;
+    token = strtok(options, s);
+    while( token != NULL ) {
+        if(token[strlen(token) -  1] == ' ')
+            token[strlen(token) -  1] = '\0';
+        if (!strcmp(token, "c")){
+            if(options_specifier == 0)
+                options_specifier = 1;
+            else {
+                invalid_input();
+                printf("logical error\n");
+                return;
+            }
+        }else if (!strcmp(token, "I")) {
+            if (options_specifier == 0)
+                options_specifier = 2;
+            else {
+                invalid_input();
+                printf("logical error\n");
+                return;
+            }
+        }
+
+        token = strtok(NULL, s);
+    }
+    compare_line_by_line(options_specifier , real_address1, real_address2);
+}
+void tree(){
+    char subcommand[10];
+    int depth;
+    char real_address[50] = "../";
+    scanf("%d" , &depth);
+    if(depth<-1){
+        invalid_input();
+        printf("invalid depth\n");
+    }
+    scanf("%s", subcommand);
+
+    if (!strcmp(subcommand, "--dir")) {
+        get_address(real_address);
+        if (access(real_address, F_OK) != 0) {
+            invalid_input();
+            printf("no such file or directory\n");
+            return;
+        }
+    }else {
+        invalid_input();
+        printf("invalid arguments for depth\n");
+    }
+    list(real_address , 0 , depth);
 
 }
 void get_command() {
@@ -371,19 +615,19 @@ void get_command() {
         } else if (!strcmp(command, "pastestr")) {
             pastestr();
         } else if (!strcmp(command, "find")) {
-
+            find();
         } else if (!strcmp(command, "replace")) {
 
         } else if (!strcmp(command, "greb")) {
 
         } else if (!strcmp(command, "undo")) {
-
+            undo();
         } else if (!strcmp(command, "autoindent")) {
 
         } else if (!strcmp(command, "compare")) {
-
+            compare();
         } else if (!strcmp(command, "tree")) {
-
+            tree();
         } else {
             invalid_input();
             printf("invalid command\n");
