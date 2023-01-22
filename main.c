@@ -369,12 +369,122 @@ void pastestr(){
     printf("Done\n");
 
 }
-void find_by_words(int specifier , int size){
+char * strrstr(char *string, char *find, ssize_t len , int size)
+{
+    //I see the find in string when i print it
+    //printf("%s", string);
+    char *cp;
+    for (cp = string + len - size; cp >= string; cp--)
+    {
+        if (strncmp(cp, find,size) == 0)
+            return cp;
+    }
+    return NULL;
+}
+void find_by_chars(char input_data[] , char real_address[] , int specifier , int size){
+    char * tmp = create_tmp_file(real_address);
+    char * star_pos;
+    int counter = 0;
+    char ans[50];
+   if( ( star_pos = strstr(input_data , "*") )!= NULL){
+       if(*(star_pos - 1) != ' ' && *(star_pos - 1) != NULL){
+           char * first_part = strsep(&input_data , "*");
+           char * second_part = strsep(&input_data , "*");
+           char *find ;
+           int i = 0;
+           do{
+               if((find = strstr(tmp+i, first_part)) == NULL)
+                   break;
+               char *last_char = find;
+               last_char += strlen(first_part);
+               for (; *(last_char) != ' ' &&  *(last_char) != EOF; last_char++) { }
+
+               if (!strncmp(last_char, second_part, strlen(second_part))) {
+                   counter ++;
+                   ans[counter] = strlen(tmp) - strlen(find);
+                   i =  strlen(tmp) - strlen(last_char);
+                   if(specifier == 0 || specifier == 3) {
+                       printf("%d\n", strlen(tmp) - strlen(find));
+                       if(specifier == 0){ return; }
+                   }
+               } else {
+                   if(*(last_char + 1) == EOF){
+                       break;
+                   }
+               }
+               i++;
+           } while (1);
+
+       } else if(*(star_pos + 1) != ' ' && *(star_pos + 1) != NULL){
+           char * first_part = strsep(&input_data , "*");
+           char * second_part = strsep(&input_data , "*");
+           char *find  , *first_appearance ;
+           int i = 0;
+           do{
+               if((find = strstr(tmp+i, second_part)) == NULL)
+                   break;
+               int j = 0;
+               for (; find[j] != ' ' ; ++j) {}
+               if((first_appearance = strrstr(find, second_part , j+1 , strlen(second_part))) != NULL) {
+                   find = first_appearance;
+               }
+
+               char *last_char = find;
+
+               for (; *(last_char) != ' ' &&  *(last_char) != EOF; last_char--) {}
+               last_char -= strlen(first_part)-1;
+               if (!strncmp(last_char, first_part, strlen(first_part))) {
+                   if(*(last_char - 1) == EOF)
+                       last_char = tmp;
+                   counter ++;
+                   ans[counter] = strlen(tmp) - strlen(last_char);
+                   i =  strlen(tmp) - strlen(find) + strlen(second_part);
+                   if(specifier == 0 || specifier == 3){
+                       printf("%d \n", strlen(tmp) - strlen(last_char));
+                       if(specifier == 0){ return; }
+                   }
+                   //return;
+               } else {
+                   if(*(last_char + 1) == EOF){
+                       break;
+                   }
+               }
+               i++;
+           } while (i < strlen(tmp) - 1);
+
+       }
+   } else{
+       int i = 0;
+       char * find ;
+       do{
+           if((find = strstr(tmp+i, input_data)) == NULL)
+               break;
+
+           counter ++;
+           ans[counter] = strlen(tmp) - strlen(find);
+           i =  strlen(tmp) - strlen(find);
+           if(specifier == 0 || specifier == 3) {
+               printf("%d\n", strlen(tmp) - strlen(find));
+               if (specifier == 0) { return; }
+           }
+           i++;
+       } while (1);
+   }
+    if(specifier == 1) {
+        printf("%d\n", counter);
+        return;
+    } else if(specifier == 2 && counter >= size){
+        printf("%d\n" , ans[size]);
+        return;
+    } else if( specifier == 3 && counter != 0 ){
+        return;
+    }
+    printf("-1\n");
+}
+void find_by_words(char input_data[] , char real_address[] ,int specifier , int size){
     printf("w: %d ,%d" , specifier , size);
 }
-void find_by_chars(int specifier , int size){
-    printf("c: %d ,%d" , specifier , size);
-}
+
 void find(){
     char subcommand[10];
     char options[30];
@@ -446,9 +556,9 @@ void find(){
         token = strtok(NULL, s);
     }
     if(word_flag)
-        find_by_words(options_specifier , at_size);
+        find_by_words(input_str , real_address , options_specifier , at_size);
     else
-        find_by_chars(options_specifier , at_size);
+        find_by_chars(input_str , real_address , options_specifier , at_size);
 
 }
 void undo(){
