@@ -65,8 +65,14 @@ void get_str(char input_str[] ){
         input_str--;
     }
     for (int i = 0; i < strlen(input_str); ++i) {
+        if(input_str[i] == '*' && (*(input_str+i-1) != '\\' || *(input_str+i-1) == EOF))
+            input_str[i] = '\a';
         if(input_str[i] == '\\'){
             switch (input_str[i+1]) {
+                case '*':
+                    input_str[i+1] = '*';
+                    memmove(&input_str[i] , &input_str[i+1], strlen(input_str) - i);
+                    break;
                 case 'n':
                     input_str[i+1] = '\n';
                     memmove(&input_str[i] , &input_str[i+1], strlen(input_str) - i);
@@ -381,15 +387,23 @@ char * strrstr(char *string, char *find, ssize_t len , int size)
     }
     return NULL;
 }
-void find_by_chars(char input_data[] , char real_address[] , int specifier , int size){
+int word_counter(char * tmp , int index){
+    int counter = 0;
+    for (int i = 0; i <= index ; ++i) {
+        if(tmp[i] == ' ')
+            counter ++;
+    }
+    return counter+1;
+}
+void find_by_chars(char input_data[] , char real_address[] , int specifier ,int byword_flag ,  int size , int is_replace , char to_be_replaced[]){
     char * tmp = create_tmp_file(real_address);
     char * star_pos;
-    int counter = 0;
-    char ans[50];
-   if( ( star_pos = strstr(input_data , "*") )!= NULL){
+    int counter = 0 , actual_pos = 0;
+    int ans[50] = {0} , eo_ans[50] = {0} ;
+   if( ( star_pos = strstr(input_data , "\a") )!= NULL){
        if(*(star_pos - 1) != ' ' && *(star_pos - 1) != NULL){
-           char * first_part = strsep(&input_data , "*");
-           char * second_part = strsep(&input_data , "*");
+           char * first_part = strsep(&input_data , "\a");
+           char * second_part = strsep(&input_data , "\a");
            char *find ;
            int i = 0;
            do{
@@ -402,9 +416,25 @@ void find_by_chars(char input_data[] , char real_address[] , int specifier , int
                if (!strncmp(last_char, second_part, strlen(second_part))) {
                    counter ++;
                    ans[counter] = strlen(tmp) - strlen(find);
-                   i =  strlen(tmp) - strlen(last_char);
+                   i =  strlen(tmp) - strlen(last_char) - 1;
+                   if(byword_flag == 1){
+                       ans[counter] = word_counter(tmp , ans[counter]);
+                   }
+                   eo_ans[counter] = i;
                    if(specifier == 0 || specifier == 3) {
-                       printf("%d\n", strlen(tmp) - strlen(find));
+                       if(!is_replace)
+                           printf("%d->%d\n", ans[counter] , i);
+                       else{
+                           if(counter == 1){
+                               actual_pos = i - ans[counter] + 1 - strlen(to_be_replaced);
+                               remove_str_fromfile(real_address, i - ans[counter]+1, 1, ans[counter], 'f');
+                               insert_str_infile(real_address, to_be_replaced, 1, ans[counter]);
+                           } else {
+                               remove_str_fromfile(real_address, i - ans[counter]+1 , 1, ans[counter] - actual_pos, 'f');
+                               insert_str_infile(real_address, to_be_replaced, 1, ans[counter] - actual_pos);
+                               actual_pos += (i - ans[counter] + 1 - strlen(to_be_replaced));
+                           }
+                       }
                        if(specifier == 0){ return; }
                    }
                } else {
@@ -416,8 +446,8 @@ void find_by_chars(char input_data[] , char real_address[] , int specifier , int
            } while (1);
 
        } else if(*(star_pos + 1) != ' ' && *(star_pos + 1) != NULL){
-           char * first_part = strsep(&input_data , "*");
-           char * second_part = strsep(&input_data , "*");
+           char * first_part = strsep(&input_data , "\a");
+           char * second_part = strsep(&input_data , "\a");
            char *find  , *first_appearance ;
            int i = 0;
            do{
@@ -438,9 +468,26 @@ void find_by_chars(char input_data[] , char real_address[] , int specifier , int
                        last_char = tmp;
                    counter ++;
                    ans[counter] = strlen(tmp) - strlen(last_char);
-                   i =  strlen(tmp) - strlen(find) + strlen(second_part);
+
+                   i =  strlen(tmp) - strlen(find) + strlen(second_part) -1 ;
+                   if(byword_flag == 1){
+                       ans[counter] = word_counter(tmp , ans[counter]);
+                   }
+                   eo_ans[counter] = i;
                    if(specifier == 0 || specifier == 3){
-                       printf("%d \n", strlen(tmp) - strlen(last_char));
+                       if(!is_replace)
+                           printf("%d->%d\n", ans[counter] , i);
+                       else{
+                           if(counter == 1){
+                               actual_pos = i - ans[counter] + 1 - strlen(to_be_replaced);
+                               remove_str_fromfile(real_address, i - ans[counter]+1, 1, ans[counter], 'f');
+                               insert_str_infile(real_address, to_be_replaced, 1, ans[counter]);
+                           } else {
+                               remove_str_fromfile(real_address, i - ans[counter]+1 , 1, ans[counter] - actual_pos, 'f');
+                               insert_str_infile(real_address, to_be_replaced, 1, ans[counter] - actual_pos);
+                               actual_pos += (i - ans[counter] + 1 - strlen(to_be_replaced));
+                           }
+                       }
                        if(specifier == 0){ return; }
                    }
                    //return;
@@ -462,9 +509,25 @@ void find_by_chars(char input_data[] , char real_address[] , int specifier , int
 
            counter ++;
            ans[counter] = strlen(tmp) - strlen(find);
-           i =  strlen(tmp) - strlen(find);
+           i =  strlen(tmp) - strlen(find) + strlen(input_data)-1;
+           if(byword_flag == 1){
+               ans[counter] = word_counter(tmp , ans[counter]);
+           }
+           eo_ans[counter] = i;
            if(specifier == 0 || specifier == 3) {
-               printf("%d\n", strlen(tmp) - strlen(find));
+               if(!is_replace)
+                   printf("%d->%d\n", ans[counter] , i);
+               else{
+                   if(counter == 1){
+                       actual_pos = i - ans[counter] + 1 - strlen(to_be_replaced);
+                       remove_str_fromfile(real_address, i - ans[counter]+1, 1, ans[counter], 'f');
+                       insert_str_infile(real_address, to_be_replaced, 1, ans[counter]);
+                   } else {
+                       remove_str_fromfile(real_address, i - ans[counter]+1 , 1, ans[counter] - actual_pos, 'f');
+                       insert_str_infile(real_address, to_be_replaced, 1, ans[counter] - actual_pos);
+                       actual_pos += (i - ans[counter] + 1 - strlen(to_be_replaced));
+                   }
+               }
                if (specifier == 0) { return; }
            }
            i++;
@@ -474,16 +537,19 @@ void find_by_chars(char input_data[] , char real_address[] , int specifier , int
         printf("%d\n", counter);
         return;
     } else if(specifier == 2 && counter >= size){
-        printf("%d\n" , ans[size]);
+        if(!is_replace)
+            printf("%d->%d\n", ans[size] , eo_ans[size]);
+        else{
+            remove_str_fromfile(real_address, eo_ans[size] - ans[size]+1, 1, ans[size], 'f');
+            insert_str_infile(real_address, to_be_replaced, 1, ans[size]);
+        }
         return;
     } else if( specifier == 3 && counter != 0 ){
         return;
     }
     printf("-1\n");
 }
-void find_by_words(char input_data[] , char real_address[] ,int specifier , int size){
-    printf("w: %d ,%d" , specifier , size);
-}
+
 
 void find(){
     char subcommand[10];
@@ -555,11 +621,79 @@ void find(){
 
         token = strtok(NULL, s);
     }
-    if(word_flag)
-        find_by_words(input_str , real_address , options_specifier , at_size);
-    else
-        find_by_chars(input_str , real_address , options_specifier , at_size);
 
+    find_by_chars(input_str , real_address , options_specifier , word_flag, at_size , 0 , NULL);
+
+
+}
+
+void replace(){
+    char subcommand[10];
+    char options[30];
+    char tmp ;
+    int options_specifier = 0 , at_size = 0;
+    char real_address[50] = "../";
+    char input_str[100] , input_str2[100];
+    for (int i = 0; i < 3; ++i) {
+
+        scanf(" %c" , &tmp);
+        if(tmp != '-'){
+            invalid_input();
+            printf("invalid arguments for find\n");
+            return;
+        }
+        scanf("%s", subcommand);
+
+        if (!strcmp(subcommand, "-file")) {
+            get_address(real_address);
+            if (access(real_address, F_OK) != 0) {
+                invalid_input();
+                printf("no such file or directory\n");
+                return;
+            }
+
+        } else if (!strcmp(subcommand, "-str1")) {
+            get_str(input_str);
+        }else if (!strcmp(subcommand, "-str2")) {
+            get_str(input_str2);
+        }
+        else {
+            invalid_input();
+            printf("invalid arguments for replace\n");
+            return;
+        }
+    }
+    scanf("%[^'\n']s" , options);
+
+    const char s[2] = "-";
+    char *token;
+    token = strtok(options, s);
+    while( token != NULL ) {
+        if(token[strlen(token) -  1] == ' ')
+            token[strlen(token) -  1] = '\0';
+        if(token[0]=='a' && token[1] == 't'){
+            if(options_specifier == 0)
+                options_specifier = 2;
+            else {
+                invalid_input();
+                printf("logical error\n");
+                return;
+            }
+            sscanf(token, "at %d" , &at_size);
+        }else if(!strcmp(token, "all")) {
+            if(options_specifier == 0)
+                options_specifier = 3;
+            else {
+                invalid_input();
+                printf("logical error\n");
+                return;
+            }
+        }
+        token = strtok(NULL, s);
+    }
+
+    find_by_chars(input_str , real_address , options_specifier , 0 , at_size , 1 , input_str2);
+    printf("Done\n");
 }
 void undo(){
     char subcommand[10];
@@ -727,7 +861,7 @@ void get_command() {
         } else if (!strcmp(command, "find")) {
             find();
         } else if (!strcmp(command, "replace")) {
-
+            replace();
         } else if (!strcmp(command, "greb")) {
 
         } else if (!strcmp(command, "undo")) {
