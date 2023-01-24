@@ -25,10 +25,13 @@ void make_dir(char * path){
     }
     mkdir(path , 0777);
 }
-void get_address(char real_address[]){
+int get_address(char real_address[]){
     char file_address[50] ;
     char tmp;
-    scanf(" %c" , &tmp);
+    tmp = getchar();
+    if(tmp == '\n')
+        return 0;
+    scanf("%c" , &tmp);
 
     if((int)tmp == 47 ) {
         scanf("%s", file_address);
@@ -41,9 +44,10 @@ void get_address(char real_address[]){
     else {
         invalid_input();
         printf("invalid address\n");
-        return;
+        return 0;
     }
     strcat(real_address , file_address);
+    return 1;
 }
 void get_str(char input_str[] ){
     char tmp;
@@ -695,6 +699,100 @@ void replace(){
     find_by_chars(input_str , real_address , options_specifier , 0 , at_size , 1 , input_str2);
     printf("Done\n");
 }
+void search_line_by_line(int specifier , char all_address[20][50] , char  input_data[]){
+    int counter = 0;
+    for (int i = 0; i < 20 && all_address[i][0] != '\0'; ++i) {
+        char *file1 = create_tmp_file(all_address[i]);
+
+        file1[strlen(file1) - 1] = '\0';
+
+        if(strstr(file1 , input_data) != NULL) {
+            char *file_name = strrchr(all_address[i] , '/');
+            if(specifier != 1)
+                printf("/%s:\n", file_name);
+            if(specifier == 2) {
+                counter = 1;
+                continue;
+            }
+        }
+        else
+            continue;
+        const char s[2] = "\n\0";
+        char *file1_token;
+        file1_token = strsep(&file1, s);
+
+        while (file1_token != NULL) {
+            if (strstr(file1_token, input_data) != NULL) {
+                if(specifier != 1)
+                    printf("%s\n", file1_token);
+                counter++;
+            }
+            file1_token = strsep(&file1, s);
+        }
+    }
+    if(counter == 0 && specifier != 1){
+        printf("not found\n");
+    }
+    if(specifier == 1)
+        printf("%d\n" , counter);
+}
+void grep(){
+    char subcommand[10];
+    char options[10];
+    char tmp , tmp2 ;
+    int word_flag = 0, options_specifier = 0 , at_size = 0;
+    char real_address[50] = "../";
+    char all_address[20][50] ={'\0'};
+    char input_str[100];
+    getchar();
+    tmp = getchar();
+    if(tmp != '-'){
+        invalid_input();
+        return;
+    }
+    tmp2 = getchar();
+    if(tmp2 == '-'){
+        scanf("%s" , subcommand);
+        get_str(input_str);
+    }else if(tmp2 == 'c'){
+        options_specifier = 1;
+        scanf(" %s" , subcommand);
+        get_str(input_str);
+    }else if (tmp2 == 'l'){
+        options_specifier = 2;
+        scanf(" %s" , subcommand);
+        get_str(input_str);
+    }
+    if (!strcmp(subcommand, "-c")){
+        options_specifier = 1;
+    } else if (!strcmp(subcommand, "-l")){
+        options_specifier = 2;
+    }
+
+        scanf(" %s", subcommand);
+
+        if (!strcmp(subcommand, "--file")) {
+            int i = 0;
+            while (get_address(real_address) == 1) {
+                if (access(real_address, F_OK) != 0) {
+                    invalid_input();
+                    printf("no such file or directory\n");
+
+                }
+                strcpy(all_address[i], real_address);
+                i++;
+                for (int j = 3; j < strlen(real_address) ; ++j) {
+                    real_address[j] = '\0';
+                }
+            }
+
+        } else{
+            invalid_input();
+            return;
+        }
+    search_line_by_line(options_specifier, all_address , input_str );
+
+}
 void undo(){
     char subcommand[10];
     char first ;
@@ -836,7 +934,6 @@ void tree(){
         printf("invalid arguments for depth\n");
     }
     list(real_address , 0 , depth);
-
 }
 void get_command() {
     char command[30];
@@ -862,8 +959,8 @@ void get_command() {
             find();
         } else if (!strcmp(command, "replace")) {
             replace();
-        } else if (!strcmp(command, "greb")) {
-
+        } else if (!strcmp(command, "grep")) {
+            grep();
         } else if (!strcmp(command, "undo")) {
             undo();
         } else if (!strcmp(command, "autoindent")) {
