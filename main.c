@@ -110,25 +110,25 @@ char * last_version_address(char real_address[]){
     filename[0] = '.';
     return version_address;
 }
+
 char * create_tmp_file(char real_address[]){
     char *version_address = last_version_address(real_address);
     FILE * file;
     FILE * last_version;
     last_version = fopen(version_address, "w");
     file = fopen(real_address, "r+");
-    char *tmp =(char *) calloc(10000 , sizeof(char ));
+    char *tmp =(char *) calloc(10000000 , sizeof(char ));
     int j = 0;
     for (; 1 ; ++j) {
         tmp[j]= fgetc(file);
         if(tmp[j] == EOF)break;
         fputc(tmp[j] , last_version);
     }
- //   tmp[j] = '\0';
+    //   tmp[j] = '\0';
     fclose(file);
     fclose(last_version);
     return tmp;
 }
-
 int access_to_position(char *tmp , int line , int pos){
     if(line == 1)
         pos--;
@@ -846,7 +846,7 @@ void compare_line_by_line(int specifier , char address1[] , char  address2[]){
         file2_token = strsep(&file2, s);
     }
     if(file1_token != NULL){
-        printf("######## first file is longer ########\n");
+        printf("!!!!!!!!! first file is longer !!!!!!!!!\n");
         while (file1_token != NULL){
             printf("%s\n" , file1_token);
             file1_token = strsep(&file1 , s);
@@ -911,6 +911,106 @@ void compare(){
     }
     compare_line_by_line(options_specifier , real_address1, real_address2);
 }
+void indent(char *real_address){
+    char *tmp = create_tmp_file(real_address);
+    tmp[strlen(tmp) -1 ]= '\0';
+    int indent_counter = 0;
+    for (int i = 0; tmp[i] != '\0' ; ++i) {
+        if(indent_counter < 0){
+            printf("wrong system!\n");
+            return;
+        }
+        if(tmp[i] == '\n'){
+            int j = i + 1 ;
+            for (; tmp[j] == ' '  ; j++) { }
+            if(tmp[j]!= '}'){
+                memmove(&tmp[i + indent_counter * 4 + 1], &tmp[j], strlen(tmp) - i + 1);
+                memcpy(&tmp[i + 1], "                              ", indent_counter * 4);
+            }
+
+        }
+        if(tmp[i] == '{') {
+            indent_counter++;
+            int j = i - 1;
+            for (; tmp[j] == ' ' && j >= 0 ; j--) { }
+            j++;
+            if(tmp[j-1] != '\n' && j >= 1) {
+                memmove(&tmp[j + 1], &tmp[i], strlen(tmp) - i + 1);
+                memcpy(&tmp[j], " ", 1);
+                i = j + 1 ;
+            }
+
+            j = i + 1 ;
+            int k = i + 1;
+            for (; tmp[k] == ' '  ; k++) { }
+            if(tmp[k] != '\n'){
+                memmove(&tmp[j+4*indent_counter+1] ,&tmp[j] , strlen(tmp) - i + 1);
+                memcpy(&tmp[j+1] ,  "                                                        " , 4*indent_counter);
+                tmp[j] = '\n';
+                i = j - 1;
+            }
+
+        }
+        if(tmp[i] == '}') {
+            indent_counter--;
+            int flag = 0;
+            if (tmp[i+1] == '\0' || indent_counter == 0){
+                flag = 1;
+            }
+
+            int j = i - 1;
+            for (; tmp[j] == ' ' && j >= 0 ; j--) { }
+            j++;
+            if(tmp[j-1] != '\n') {
+                memmove(&tmp[j+4*indent_counter+1] ,&tmp[i] , strlen(tmp) - i + 1);
+                memcpy(&tmp[j+1] ,  "                                                        " , 4*indent_counter);
+                tmp[j] = '\n';
+                i = j +(indent_counter)*4+1;
+            }else{
+                memmove(&tmp[j+(indent_counter)*4] ,&tmp[i] , strlen(tmp) - i + 1 );
+                memcpy(&tmp[j+1] , "                                                  " , (indent_counter)*4 - 1 + flag);
+                i = j+(indent_counter)*4 ;
+            }
+
+            j = i + 1 ;
+            int k= i + 1;
+            for (; tmp[k] == ' '  ; k++) { }
+            if(tmp[k] != '\n'){
+                memmove(&tmp[j+4*indent_counter+1] ,&tmp[j] , strlen(tmp) - j + 1);
+                memcpy(&tmp[j+1] ,  "                                                        " , 4*indent_counter);
+                tmp[j] = '\n';
+                i = j-1;
+            }
+        }
+    }
+    if(indent_counter != 0 ){
+        printf("wrong system!\n");
+        return;
+    }
+    FILE *file = fopen(real_address , "w");
+    fputs(tmp , file);
+    fclose(file);
+    printf("Done\n");
+}
+void autoindent(){
+    char subcommand[10];
+    char real_address[50] = "../";
+    scanf("%s", subcommand);
+
+    if (!strcmp(subcommand, "--file")) {
+        get_address(real_address);
+        if (access(real_address, F_OK) != 0) {
+            invalid_input();
+            printf("no such file or directory\n");
+            return;
+        }
+    }else {
+        invalid_input();
+        printf("invalid arguments for autoindent\n");
+    }
+    indent(real_address);
+
+}
 void tree(){
     char subcommand[10];
     int depth;
@@ -931,7 +1031,7 @@ void tree(){
         }
     }else {
         invalid_input();
-        printf("invalid arguments for depth\n");
+        printf("invalid arguments for tree\n");
     }
     list(real_address , 0 , depth);
 }
@@ -964,7 +1064,7 @@ void get_command() {
         } else if (!strcmp(command, "undo")) {
             undo();
         } else if (!strcmp(command, "autoindent")) {
-
+            autoindent();
         } else if (!strcmp(command, "compare")) {
             compare();
         } else if (!strcmp(command, "tree")) {
@@ -979,7 +1079,5 @@ void get_command() {
 
 int main(){
     get_command();
-
     return(0);
-
 }
