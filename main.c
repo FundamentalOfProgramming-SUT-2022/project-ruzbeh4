@@ -467,43 +467,47 @@ void find_by_chars(char input_data[] , char real_address[] , int specifier ,int 
            char * first_part = strsep(&input_data , "\a");
            char * second_part = strsep(&input_data , "\a");
            char *find  , *first_appearance ;
-           int i = 0;
+           int i = 1;
+           memmove(&tmp[1] ,  &tmp[0] , strlen(tmp));
+           tmp[0] = '\a';
            do{
+               if(i > strlen(tmp))
+                   break;
                if((find = strstr(tmp+i, second_part)) == NULL)
                    break;
                int j = 0;
-               for (; find[j] != ' ' ; ++j) {}
+               for (; find[j] != ' ' && find[j] != EOF ; ++j) {}
                if((first_appearance = strrstr(find, second_part , j+1 , strlen(second_part))) != NULL) {
                    find = first_appearance;
                }
 
                char *last_char = find;
 
-               for (; *(last_char) != ' ' &&  *(last_char) != EOF; last_char--) {}
+               for (; *(last_char) != ' ' &&  *(last_char) != '\a'; last_char--) {}
                last_char -= strlen(first_part)-1;
                if (!strncmp(last_char, first_part, strlen(first_part))) {
-                   if(*(last_char - 1) == EOF)
-                       last_char = tmp;
+                   if(*(last_char - 1) == '\a')
+                       last_char = tmp + 1 ;
                    counter ++;
-                   ans[counter] = strlen(tmp) - strlen(last_char);
+                   ans[counter] = strlen(tmp) - strlen(last_char) - 1;
 
                    i =  strlen(tmp) - strlen(find) + strlen(second_part) -1 ;
                    if(byword_flag == 1){
                        ans[counter] = word_counter(tmp , ans[counter]);
                    }
-                   eo_ans[counter] = i;
+                   eo_ans[counter] = i - 1;
                    if(specifier == 0 || specifier == 3){
                        if(!is_replace)
-                           printf("%d->%d\n", ans[counter] , i);
+                           printf("%d->%d\n", ans[counter] ,eo_ans[counter]);
                        else{
                            if(counter == 1){
-                               actual_pos = i - ans[counter] + 1 - strlen(to_be_replaced);
-                               remove_str_fromfile(real_address, i - ans[counter]+1, 1, ans[counter], 'f');
+                               actual_pos = eo_ans[counter] - ans[counter] + 1 - strlen(to_be_replaced);
+                               remove_str_fromfile(real_address, eo_ans[counter] - ans[counter]+1, 1, ans[counter], 'f');
                                insert_str_infile(real_address, to_be_replaced, 1, ans[counter]);
                            } else {
-                               remove_str_fromfile(real_address, i - ans[counter]+1 , 1, ans[counter] - actual_pos, 'f');
+                               remove_str_fromfile(real_address, eo_ans[counter] - ans[counter]+1 , 1, ans[counter] - actual_pos, 'f');
                                insert_str_infile(real_address, to_be_replaced, 1, ans[counter] - actual_pos);
-                               actual_pos += (i - ans[counter] + 1 - strlen(to_be_replaced));
+                               actual_pos += (eo_ans[counter] - ans[counter] + 1 - strlen(to_be_replaced));
                            }
                        }
                        if(specifier == 0){ return; }
