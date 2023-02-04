@@ -3,18 +3,28 @@
 #include <stdlib.h>
 #include "string.h"
 #include "unistd.h"
+#include "ncurses.h"
 #include "sys/types.h"
 #include "sys/stat.h"
 #include "dirent.h"
 #include "tree.h"
+#include "curses.h"
+
+char  command_line[100] ;
+WINDOW * text_part;
+WINDOW * command_part;
+WINDOW * status;
+FILE * command_file;
+WINDOW * new_line_position;
+WINDOW * num;
 void invalid_input(){
     char tmp;
     char tmp2[100];
-    scanf("%c", &tmp);
+    fscanf(command_file , "%c", &tmp);
     if (tmp == ' ') {
-        scanf("%[^'\n']s", tmp2);
+        fscanf(command_file , "%[^'\n']s", tmp2);
     }
-    printf("error: ");
+    wprintw( command_part , "error: ");
 }
 void make_dir(char * path){
     char *seprator = strrchr(path , '/');
@@ -28,22 +38,22 @@ void make_dir(char * path){
 int get_address(char real_address[]){
     char file_address[50] ;
     char tmp;
-    tmp = getchar();
+    tmp = fgetc(command_file);
     if(tmp == '\n')
         return 0;
-    scanf("%c" , &tmp);
+    fscanf(command_file , "%c" , &tmp);
 
-    if((int)tmp == 47 ) {
-        scanf("%s", file_address);
+    if(tmp == 47 ) {
+        fscanf(command_file , "%s", file_address);
     }
-    else if(tmp == '"') {
-        scanf("/");
-        scanf("%[^'\"']s", file_address);
-        scanf("\"");
+    else if(tmp == (int)'"') {
+        wscanw(command_part , "/");
+        wscanw(command_part , "%[^'\"']s", file_address);
+        wscanw(command_part , "\"");
     }
     else {
         invalid_input();
-        printf("invalid address\n");
+        wprintw(command_part , "invalid address\n");
         return 0;
     }
     strcat(real_address , file_address);
@@ -52,12 +62,12 @@ int get_address(char real_address[]){
 void get_str(char input_str[] ){
     char tmp;
 
-    scanf(" %c" , &tmp);
+    fscanf(command_file , " %c" , &tmp);
 
     if(tmp == '"') {
         int j = 0;
         for (; 1 ; ++j) {
-            input_str[j]= fgetc(stdin);
+            input_str[j]= fgetc(command_file);
             if(input_str[j] == '\"' && input_str[j-1] != '\\')break;
         }
         input_str[j] = '\0';
@@ -65,7 +75,7 @@ void get_str(char input_str[] ){
     else {
         input_str[0] = tmp;
         input_str++;
-        scanf("%s", input_str);
+        fscanf(command_file , "%s", input_str);
         input_str--;
     }
     for (int i = 0; i < strlen(input_str); ++i) {
@@ -166,13 +176,13 @@ void remove_str_fromfile(char real_address[50], int size, int line , int pos , c
         memmove(&tmp[i-size] ,&tmp[i] , strlen(tmp) - i + 1 );
     } else{
         invalid_input();
-        printf("no such option for this command\n");
+        wprintw(command_part , "no such option for this command\n");
     }
     tmp[strlen(tmp) - 1] = '\0';
     FILE * file = fopen(real_address, "w");
     fputs(tmp, file);
     fclose(file);
-//    printf("done\n");
+//    wprintw(command_part , "done\n");
 }
 void copy_str_fromfile(char real_address[50], int size, int line , int pos , char direction){
     char *saved_data = (char *)calloc(10000 , sizeof (char ));
@@ -194,14 +204,16 @@ void copy_str_fromfile(char real_address[50], int size, int line , int pos , cha
 void create_file(){
     char subcommand[10];
     char real_address[50] = "../";
-    scanf("%s" , subcommand);
+//    getch();
 
+    fscanf(command_file , "%s" , subcommand);
+    wprintw(command_part , "\n########%s", subcommand);
     if (!strcmp(subcommand, "--file")){
 
         get_address(real_address);
         if (access(real_address , F_OK) == 0) {
             invalid_input();
-            printf("file already exists!\n");
+            wprintw(command_part , "file already exists!\n");
         } else {
             char dir_address[50];
             strcpy(dir_address , real_address);
@@ -214,11 +226,11 @@ void create_file(){
             FILE * file;
             file = fopen(real_address, "w");
             fclose(file);
-            printf("done\n");
+            wprintw(command_part , "Done\n");
         }
     } else {
         invalid_input();
-        printf("invalid arguments for createfile\n");
+        wprintw(command_part , "invalid arguments for createfile\n");
     }
 
 }
@@ -230,49 +242,49 @@ void insertstr(){
     int line , pos;
     for (int i = 0; i < 3; ++i) {
 
-        scanf(" %c" , &tmp);
+        fscanf(command_file , " %c" , &tmp);
         if(tmp != '-'){
             invalid_input();
-            printf("invalid arguments for insertstr\n");
+            wprintw(command_part , "invalid arguments for insertstr\n");
             return;
         }
-        scanf("%s", subcommand);
+        fscanf(command_file , "%s", subcommand);
 
         if (!strcmp(subcommand, "-file")) {
             get_address(real_address);
             if (access(real_address, F_OK) != 0) {
                 invalid_input();
-                printf("no such file or directory\n");
+                wprintw(command_part , "no such file or directory\n");
                 return;
             }
 
         } else if (!strcmp(subcommand, "-str")) {
             get_str(input_str );
         } else if (!strcmp(subcommand, "-pos")) {
-            scanf(" %d,%d" , &line,&pos);
+            fscanf(command_file , " %d,%d" , &line,&pos);
         }
         else {
             invalid_input();
-            printf("invalid arguments for insertstr\n");
+            wprintw(command_part , "invalid arguments for insertstr\n");
         }
     }
 
     insert_str_infile(real_address , input_str , line , pos);
 
-    printf("done\n");
+    wprintw(command_part , "done\n");
 
 }
 void cat(){
     char subcommand[10];
     char real_address[50] = "../";
-    scanf("%s" , subcommand);
+    fscanf(command_file , "%s" , subcommand);
 
     if (!strcmp(subcommand, "--file")){
 
         get_address(real_address);
         if (access(real_address, F_OK) != 0) {
             invalid_input();
-            printf("no such file or directory\n");
+            wprintw(command_part , "no such file or directory\n");
             return;
         }
 
@@ -284,13 +296,13 @@ void cat(){
         for (; 1 ; ++j) {
             tmp= fgetc(file);
             if(tmp == EOF)break;
-            printf("%c" , tmp);
+            wprintw(command_part , "%c" , tmp);
         }
         fclose(file);
 
     } else {
         invalid_input();
-        printf("invalid arguments for createfile\n");
+        wprintw(command_part , "invalid arguments for createfile\n");
     }
 }
 
@@ -301,33 +313,33 @@ void remove_or_copy_or_cutstr(int specifier){  // 0 for remove 1 for copy 2 for 
     int size ,dir;
     int line , pos;
     for (int i = 0; i < 3; ++i) {
-        scanf(" %c" , &first);
+        fscanf(command_file , " %c" , &first);
         if(first != '-'){
             invalid_input();
-            printf("invalid arguments for insertstr\n");
+            wprintw(command_part , "invalid arguments for insertstr\n");
             return;
         }
-        scanf("%s", subcommand);
+        fscanf(command_file , "%s", subcommand);
 
         if (!strcmp(subcommand, "-file")) {
             get_address(real_address);
             if (access(real_address, F_OK) != 0) {
                 invalid_input();
-                printf("no such file or directory\n");
+                wprintw(command_part , "no such file or directory\n");
                 return;
             }
 
         } else if (!strcmp(subcommand, "-size")) {
-            scanf("%d" ,&size);
+            fscanf(command_file , "%d" ,&size);
         } else if (!strcmp(subcommand, "-pos")) {
-            scanf(" %d,%d" , &line,&pos);
+            fscanf(command_file , " %d,%d" , &line,&pos);
         }else {
             invalid_input();
-            printf("invalid arguments for insertstr\n");
+            wprintw(command_part , "invalid arguments for insertstr\n");
         }
 
     }
-    scanf(" -%c" , &direction);
+    fscanf(command_file , " -%c" , &direction);
     if(specifier == 0)
         remove_str_fromfile(real_address, size, line , pos , direction);
     else if(specifier == 1)
@@ -337,7 +349,7 @@ void remove_or_copy_or_cutstr(int specifier){  // 0 for remove 1 for copy 2 for 
         remove_str_fromfile(real_address, size, line , pos , direction);
     }
 
-    printf("Done\n");
+    wprintw(command_part , "Done\n");
 
 }
 
@@ -348,41 +360,41 @@ void pastestr(){
     int line , pos;
     for (int i = 0; i < 2 ; ++i) {
 
-        scanf(" %c" , &tmp);
+        fscanf(command_file , " %c" , &tmp);
         if(tmp != '-'){
             invalid_input();
-            printf("invalid arguments for insertstr\n");
+            wprintw(command_part , "invalid arguments for insertstr\n");
             return;
         }
-        scanf("%s", subcommand);
+        fscanf(command_file , "%s", subcommand);
 
         if (!strcmp(subcommand, "-file")) {
             get_address(real_address);
             if (access(real_address, F_OK) != 0) {
                 invalid_input();
-                printf("no such file or directory\n");
+                wprintw(command_part , "no such file or directory\n");
                 return;
             }
 
         }else if (!strcmp(subcommand, "-pos")) {
-            scanf(" %d,%d" , &line,&pos);
+            fscanf(command_file , " %d,%d" , &line,&pos);
         }
         else {
             invalid_input();
-            printf("invalid arguments for insertstr\n");
+            wprintw(command_part , "invalid arguments for insertstr\n");
         }
     }
     char *saved_data = create_tmp_file("./clipboard.txt");
     saved_data[strlen(saved_data) -1] = '\0';
     insert_str_infile(real_address , saved_data , line , pos);
 
-    printf("Done\n");
+    wprintw(command_part , "Done\n");
 
 }
 char * strrstr(char *string, char *find, ssize_t len , int size)
 {
     //I see the find in string when i print it
-    //printf("%s", string);
+    //wprintw(command_part , "%s", string);
     char *cp;
     for (cp = string + len - size; cp >= string; cp--)
     {
@@ -427,7 +439,7 @@ void find_by_chars(char input_data[] , char real_address[] , int specifier ,int 
                    eo_ans[counter] = i;
                    if(specifier == 0 || specifier == 3) {
                        if(!is_replace)
-                           printf("%d->%d\n", ans[counter] , i);
+                           wprintw(command_part , "%d->%d\n", ans[counter] , i);
                        else{
                            if(counter == 1){
                                actual_pos = i - ans[counter] + 1 - strlen(to_be_replaced);
@@ -480,7 +492,7 @@ void find_by_chars(char input_data[] , char real_address[] , int specifier ,int 
                    eo_ans[counter] = i;
                    if(specifier == 0 || specifier == 3){
                        if(!is_replace)
-                           printf("%d->%d\n", ans[counter] , i);
+                           wprintw(command_part , "%d->%d\n", ans[counter] , i);
                        else{
                            if(counter == 1){
                                actual_pos = i - ans[counter] + 1 - strlen(to_be_replaced);
@@ -520,7 +532,7 @@ void find_by_chars(char input_data[] , char real_address[] , int specifier ,int 
            eo_ans[counter] = i;
            if(specifier == 0 || specifier == 3) {
                if(!is_replace)
-                   printf("%d->%d\n", ans[counter] , i);
+                   wprintw(command_part , "%d->%d\n", ans[counter] , i);
                else{
                    if(counter == 1){
                        actual_pos = i - ans[counter] + 1 - strlen(to_be_replaced);
@@ -538,11 +550,11 @@ void find_by_chars(char input_data[] , char real_address[] , int specifier ,int 
        } while (1);
    }
     if(specifier == 1) {
-        printf("%d\n", counter);
+        wprintw(command_part , "%d\n", counter);
         return;
     } else if(specifier == 2 && counter >= size){
         if(!is_replace)
-            printf("%d->%d\n", ans[size] , eo_ans[size]);
+            wprintw(command_part , "%d->%d\n", ans[size] , eo_ans[size]);
         else{
             remove_str_fromfile(real_address, eo_ans[size] - ans[size]+1, 1, ans[size], 'f');
             insert_str_infile(real_address, to_be_replaced, 1, ans[size]);
@@ -551,7 +563,7 @@ void find_by_chars(char input_data[] , char real_address[] , int specifier ,int 
     } else if( specifier == 3 && counter != 0 ){
         return;
     }
-    printf("-1\n");
+    wprintw(command_part , "-1\n");
 }
 
 
@@ -564,19 +576,19 @@ void find(){
     char input_str[100];
     for (int i = 0; i < 2; ++i) {
 
-        scanf(" %c" , &tmp);
+        fscanf(command_file , " %c" , &tmp);
         if(tmp != '-'){
             invalid_input();
-            printf("invalid arguments for find\n");
+            wprintw(command_part , "invalid arguments for find\n");
             return;
         }
-        scanf("%s", subcommand);
+        fscanf(command_file , "%s", subcommand);
 
         if (!strcmp(subcommand, "-file")) {
             get_address(real_address);
             if (access(real_address, F_OK) != 0) {
                 invalid_input();
-                printf("no such file or directory\n");
+                wprintw(command_part , "no such file or directory\n");
                 return;
             }
 
@@ -584,10 +596,10 @@ void find(){
             get_str(input_str );
         }else {
             invalid_input();
-            printf("invalid arguments for find\n");
+            wprintw(command_part , "invalid arguments for find\n");
         }
     }
-    scanf("%[^'\n']s" , options);
+    fscanf(command_file , "%[^'\n']s" , options);
 
     const char s[2] = "-";
     char *token;
@@ -600,7 +612,7 @@ void find(){
                 options_specifier = 1;
             else {
                 invalid_input();
-                printf("logical error\n");
+                wprintw(command_part , "logical error\n");
                 return;
             }
         } else if(token[0]=='a' && token[1] == 't'){
@@ -608,7 +620,7 @@ void find(){
                 options_specifier = 2;
             else {
                 invalid_input();
-                printf("logical error\n");
+                wprintw(command_part , "logical error\n");
                 return;
             }
             sscanf(token, "at %d" , &at_size);
@@ -617,7 +629,7 @@ void find(){
                 options_specifier = 3;
             else {
                 invalid_input();
-                printf("logical error\n");
+                wprintw(command_part , "logical error\n");
                 return;
             }
         }else if(!strcmp(token, "byword"))
@@ -640,19 +652,19 @@ void replace(){
     char input_str[100] , input_str2[100];
     for (int i = 0; i < 3; ++i) {
 
-        scanf(" %c" , &tmp);
+        fscanf(command_file , " %c" , &tmp);
         if(tmp != '-'){
             invalid_input();
-            printf("invalid arguments for find\n");
+            wprintw(command_part , "invalid arguments for find\n");
             return;
         }
-        scanf("%s", subcommand);
+        fscanf(command_file , "%s", subcommand);
 
         if (!strcmp(subcommand, "-file")) {
             get_address(real_address);
             if (access(real_address, F_OK) != 0) {
                 invalid_input();
-                printf("no such file or directory\n");
+                wprintw(command_part , "no such file or directory\n");
                 return;
             }
 
@@ -663,11 +675,11 @@ void replace(){
         }
         else {
             invalid_input();
-            printf("invalid arguments for replace\n");
+            wprintw(command_part , "invalid arguments for replace\n");
             return;
         }
     }
-    scanf("%[^'\n']s" , options);
+    fscanf(command_file , "%[^'\n']s" , options);
 
     const char s[2] = "-";
     char *token;
@@ -680,7 +692,7 @@ void replace(){
                 options_specifier = 2;
             else {
                 invalid_input();
-                printf("logical error\n");
+                wprintw(command_part , "logical error\n");
                 return;
             }
             sscanf(token, "at %d" , &at_size);
@@ -689,7 +701,7 @@ void replace(){
                 options_specifier = 3;
             else {
                 invalid_input();
-                printf("logical error\n");
+                wprintw(command_part , "logical error\n");
                 return;
             }
         }
@@ -697,7 +709,7 @@ void replace(){
     }
 
     find_by_chars(input_str , real_address , options_specifier , 0 , at_size , 1 , input_str2);
-    printf("Done\n");
+    wprintw(command_part , "Done\n");
 }
 void search_line_by_line(int specifier , char all_address[20][50] , char  input_data[]){
     int counter = 0;
@@ -709,7 +721,7 @@ void search_line_by_line(int specifier , char all_address[20][50] , char  input_
         if(strstr(file1 , input_data) != NULL) {
             char *file_name = strrchr(all_address[i] , '/');
             if(specifier != 1)
-                printf("/%s:\n", file_name);
+                wprintw(command_part , "/%s:\n", file_name);
             if(specifier == 2) {
                 counter = 1;
                 continue;
@@ -724,17 +736,17 @@ void search_line_by_line(int specifier , char all_address[20][50] , char  input_
         while (file1_token != NULL) {
             if (strstr(file1_token, input_data) != NULL) {
                 if(specifier != 1)
-                    printf("%s\n", file1_token);
+                    wprintw(command_part , "%s\n", file1_token);
                 counter++;
             }
             file1_token = strsep(&file1, s);
         }
     }
     if(counter == 0 && specifier != 1){
-        printf("not found\n");
+        wprintw(command_part , "not found\n");
     }
     if(specifier == 1)
-        printf("%d\n" , counter);
+        wprintw(command_part , "%d\n" , counter);
 }
 void grep(){
     char subcommand[10];
@@ -744,23 +756,23 @@ void grep(){
     char real_address[50] = "../";
     char all_address[20][50] ={'\0'};
     char input_str[100];
-    getchar();
-    tmp = getchar();
+    fgetc(command_file);
+    tmp = fgetc(command_file);
     if(tmp != '-'){
         invalid_input();
         return;
     }
-    tmp2 = getchar();
+    tmp2 = fgetc(command_file);
     if(tmp2 == '-'){
-        scanf("%s" , subcommand);
+        fscanf(command_file , "%s" , subcommand);
         get_str(input_str);
     }else if(tmp2 == 'c'){
         options_specifier = 1;
-        scanf(" %s" , subcommand);
+        fscanf(command_file , " %s" , subcommand);
         get_str(input_str);
     }else if (tmp2 == 'l'){
         options_specifier = 2;
-        scanf(" %s" , subcommand);
+        fscanf(command_file , " %s" , subcommand);
         get_str(input_str);
     }
     if (!strcmp(subcommand, "-c")){
@@ -769,14 +781,14 @@ void grep(){
         options_specifier = 2;
     }
 
-        scanf(" %s", subcommand);
+        fscanf(command_file , " %s", subcommand);
 
         if (!strcmp(subcommand, "--file")) {
             int i = 0;
             while (get_address(real_address) == 1) {
                 if (access(real_address, F_OK) != 0) {
                     invalid_input();
-                    printf("no such file or directory\n");
+                    wprintw(command_part , "no such file or directory\n");
 
                 }
                 strcpy(all_address[i], real_address);
@@ -798,24 +810,24 @@ void undo(){
     char first ;
     char real_address[50] = "../";
 
-        scanf(" %c" , &first);
+        fscanf(command_file , " %c" , &first);
         if(first != '-'){
             invalid_input();
-            printf("invalid arguments for insertstr\n");
+            wprintw(command_part , "invalid arguments for insertstr\n");
             return;
         }
-        scanf("%s", subcommand);
+        fscanf(command_file , "%s", subcommand);
 
         if (!strcmp(subcommand, "-file")) {
             get_address(real_address);
             if (access(real_address, F_OK) != 0) {
                 invalid_input();
-                printf("no such file or directory\n");
+                wprintw(command_part , "no such file or directory\n");
                 return;
             }
         }else {
             invalid_input();
-            printf("invalid arguments for insertstr\n");
+            wprintw(command_part , "invalid arguments for insertstr\n");
         }
     char * version_address = last_version_address(real_address);
     char * last_data = create_tmp_file(version_address);
@@ -826,7 +838,7 @@ void undo(){
     fclose(file);
     char * wrong_file = last_version_address(version_address);
     remove(wrong_file);
-    printf("Done!\n");
+    wprintw(command_part , "Done!\n");
 }
 void compare_line_by_line(int specifier , char address1[] , char  address2[]){
     char * file1 = create_tmp_file(address1);
@@ -840,22 +852,22 @@ void compare_line_by_line(int specifier , char address1[] , char  address2[]){
     file2_token = strsep(&file2 , s);
     for (int i = 1; file1_token != NULL && file2_token != NULL ; i++) {
         if (strcmp(file1_token, file2_token)){
-            printf("######### line %d #########\n%s\n%s\n" , i , file1_token, file2_token );
+            wprintw(command_part , "######### line %d #########\n%s\n%s\n" , i , file1_token, file2_token );
         }
         file1_token = strsep(&file1, s);
         file2_token = strsep(&file2, s);
     }
     if(file1_token != NULL){
-        printf("!!!!!!!!! first file is longer !!!!!!!!!\n");
+        wprintw(command_part , "!!!!!!!!! first file is longer !!!!!!!!!\n");
         while (file1_token != NULL){
-            printf("%s\n" , file1_token);
+            wprintw(command_part , "%s\n" , file1_token);
             file1_token = strsep(&file1 , s);
         }
     }
     if(file2_token != NULL){
-        printf("!!!!!!!!! second file is longer !!!!!!!!!\n");
+        wprintw(command_part , "!!!!!!!!! second file is longer !!!!!!!!!\n");
         while (file2_token != NULL){
-            printf("%s\n" , file2_token);
+            wprintw(command_part , "%s\n" , file2_token);
             file2_token = strsep(&file2 , s);
         }
     }
@@ -867,21 +879,21 @@ void compare(){
     char real_address1[50] = "../";
     char real_address2[50] = "../";
 
-    scanf("%s", subcommand);
+    fscanf(command_file , "%s", subcommand);
 
     if (!strcmp(subcommand, "--files")) {
         get_address(real_address1);
         get_address(real_address2);
         if (access(real_address1, F_OK) != 0 || access(real_address2, F_OK) != 0 ) {
             invalid_input();
-            printf("no such file or directory\n");
+            wprintw(command_part , "no such file or directory\n");
             return;
         }
     }else {
         invalid_input();
-        printf("invalid arguments for compare\n");
+        wprintw(command_part , "invalid arguments for compare\n");
     }
-    scanf("%[^'\n']s" , options);
+    fscanf(command_file , "%[^'\n']s" , options);
 
     const char s[2] = "-";
     char *token;
@@ -894,7 +906,7 @@ void compare(){
                 options_specifier = 1;
             else {
                 invalid_input();
-                printf("logical error\n");
+                wprintw(command_part , "logical error\n");
                 return;
             }
         }else if (!strcmp(token, "I")) {
@@ -902,7 +914,7 @@ void compare(){
                 options_specifier = 2;
             else {
                 invalid_input();
-                printf("logical error\n");
+                wprintw(command_part , "logical error\n");
                 return;
             }
         }
@@ -917,7 +929,7 @@ void indent(char *real_address){
     int indent_counter = 0;
     for (int i = 0; tmp[i] != '\0' ; ++i) {
         if(indent_counter < 0){
-            printf("wrong system!\n");
+            wprintw(command_part , "wrong system!\n");
             return;
         }
         if(tmp[i] == '\n'){
@@ -984,29 +996,29 @@ void indent(char *real_address){
         }
     }
     if(indent_counter != 0 ){
-        printf("wrong system!\n");
+        wprintw(command_part , "wrong system!\n");
         return;
     }
     FILE *file = fopen(real_address , "w");
     fputs(tmp , file);
     fclose(file);
-    printf("Done\n");
+    wprintw(command_part , "Done\n");
 }
 void autoindent(){
     char subcommand[10];
     char real_address[50] = "../";
-    scanf("%s", subcommand);
+    fscanf(command_file , "%s", subcommand);
 
     if (!strcmp(subcommand, "--file")) {
         get_address(real_address);
         if (access(real_address, F_OK) != 0) {
             invalid_input();
-            printf("no such file or directory\n");
+            wprintw(command_part , "no such file or directory\n");
             return;
         }
     }else {
         invalid_input();
-        printf("invalid arguments for autoindent\n");
+        wprintw(command_part , "invalid arguments for autoindent\n");
     }
     indent(real_address);
 
@@ -1015,69 +1027,441 @@ void tree(){
     char subcommand[10];
     int depth;
     char real_address[50] = "../";
-    scanf("%d" , &depth);
+    fscanf(command_file , "%d" , &depth);
     if(depth<-1){
         invalid_input();
-        printf("invalid depth\n");
+        wprintw(command_part , "invalid depth\n");
     }
-    scanf("%s", subcommand);
+    fscanf(command_file , "%s", subcommand);
 
     if (!strcmp(subcommand, "--dir")) {
         get_address(real_address);
         if (access(real_address, F_OK) != 0) {
             invalid_input();
-            printf("no such file or directory\n");
+            wprintw(command_part , "no such file or directory\n");
             return;
         }
     }else {
         invalid_input();
-        printf("invalid arguments for tree\n");
+        wprintw(command_part , "invalid arguments for tree\n");
     }
     list(real_address , 0 , depth);
 }
-void get_command() {
-    char command[30];
-    while (1) {
-        scanf("%s", command);
-        if (!strcmp(command, "exit"))
-            break;
-        else if (!strcmp(command, "createfile")) {
-            create_file();
-        } else if (!strcmp(command, "insertstr")) {
-            insertstr();
-        } else if (!strcmp(command, "cat")) {
-            cat();
-        } else if (!strcmp(command, "removestr")) {
-            remove_or_copy_or_cutstr(0);
-        } else if (!strcmp(command, "copystr")) {
-            remove_or_copy_or_cutstr(1);
-        } else if (!strcmp(command, "cutstr")) {
-            remove_or_copy_or_cutstr(2);
-        } else if (!strcmp(command, "pastestr")) {
-            pastestr();
-        } else if (!strcmp(command, "find")) {
-            find();
-        } else if (!strcmp(command, "replace")) {
-            replace();
-        } else if (!strcmp(command, "grep")) {
-            grep();
-        } else if (!strcmp(command, "undo")) {
-            undo();
-        } else if (!strcmp(command, "autoindent")) {
-            autoindent();
-        } else if (!strcmp(command, "compare")) {
-            compare();
-        } else if (!strcmp(command, "tree")) {
-            tree();
-        } else {
+
+int file_lines = 1;
+//int width  ;
+int height = 30;
+int mode = 0;
+void mode_write(){
+    int o_x , o_y;
+    getyx(stdscr, o_y , o_x);
+    init_pair(1 , COLOR_RED , COLOR_GREEN);
+    wattron( status , COLOR_PAIR(1));
+    wmove(status , 0 , 0 );
+    if(mode == 0) {
+        waddstr( status , "NORMALL");
+    }else if(mode == 1) {
+        waddstr( status ,"VISUAL ");
+    }else if(mode == 2) {
+        waddstr( status ,"INSERT ");
+    }
+    wattroff( status , COLOR_PAIR(1));
+    wrefresh(status);
+    move( o_y , o_x);
+    refresh();
+    //waddstr(text_part , "++");
+
+    wrefresh(text_part);
+}
+void write_nums(){
+    init_pair(2 , COLOR_CYAN , COLOR_BLACK);
+    wattron(num , COLOR_PAIR(2));
+    for (int i = 0; i < height; ++i) {
+        wmove(num , i , 0);
+        if(i + 1 <= file_lines)
+            wprintw(num, "%d", i + 1);
+        else
+            wprintw(num, " ");
+    }
+    wattroff(num , COLOR_PAIR(2));
+    wrefresh(num);
+}
+void open(){
+    wclear(text_part);
+    wclear(new_line_position);
+    char subcommand[10];
+    char real_address[50] = "../";
+    fscanf(command_file , "%s" , subcommand);
+
+    if (!strcmp(subcommand, "--file")){
+
+        get_address(real_address);
+        if (access(real_address, F_OK) != 0) {
             invalid_input();
-            printf("invalid command\n");
+            wprintw(command_part , "no such file or directory\n");
+            return;
+        }
+        //mvwaddch(status , 0 , 9 , ' ');
+        wmove(status , 0 , 9);
+        wclrtoeol(status);
+        wmove(status , 0 , 11);
+        waddstr(status , real_address);
+        wrefresh(status);
+        char* tmp = create_tmp_file(real_address);
+        tmp[strlen(tmp) - 1] = '\0';
+        file_lines = 0;
+        for (int i = 0 , j= 0 ; tmp[i] != '\0' ; ++i) {
+            if(tmp[i] == '\n') {
+                mvwaddch(new_line_position , file_lines , i - j - (1*(file_lines != 0)) , 'n' );
+                j = i ;
+                file_lines++;
+            }
+        }
+        write_nums();
+        wmove(text_part , 0 , 0);
+        waddstr( text_part , tmp);
+        wmove(text_part , 0 , 0);
+        wrefresh(text_part);
+
+    } else {
+        invalid_input();
+        wprintw(command_part , "invalid arguments for open\n");
+    }
+}
+void save(int specifier){
+    char real_address[50] = {'\0'};
+    wmove(status , 0 , 11);
+    for (int i = 0; 1 ; ++i) {
+        char tmp = winch(status) & A_CHARTEXT;
+        wmove(status , 0 , 12+i);
+        if( tmp != ' ')
+            real_address[i] = tmp;
+        else {
+            if(i == 0) {
+                real_address[0] = '.' ; real_address[1] = '.' ;
+                char file_address[50];
+                mvwprintw(command_part, 1 , 0 , "pleas enter a name and address\n");
+                wgetstr(command_part , file_address);
+                strcat(real_address , file_address);
+                mvwaddstr(status , 0 , 11 , real_address);
+            }
+            break;
         }
     }
-    printf("bye");
-}
+    if(specifier){
+        char name[50];
+        get_str(name);
+        char * filename = strrchr(real_address , '/');
+        for (int i = 1 ;*(filename+i) != '\0'; ++i) {
+            *(filename+i) ='\0';
+        }
+        strcat(real_address , name);
+    }
 
+    wprintw( command_part , "#%s\n" , real_address);
+    FILE * file = fopen(real_address , "w");
+    for (int j = 0; j < file_lines ; ++j) {
+        char line_val[100];
+        int i = 0;
+        for (; (mvwinch(new_line_position, j ,  i) & A_CHARTEXT) != 'n' ; ++i) {}
+        wmove(text_part, j, 0);
+        winnstr(text_part , line_val , i);
+        fputs(line_val, file);
+        fputc('\n' , file);
+    }
+    fclose(file);
+    mvwaddch(status , 0 , 9 , ' ');
+    wmove(text_part , 0 , 0 );
+
+
+//    if(strcmp(real_address , "../")){}
+//    else
+//    if (real_address[0] == '\0'){
+//        wprintw(command_part , "please choose an address to save\n" );
+//        get_address(real_address);
+//    }
+//    else{
+//
+//    }
+//    FILE * file = fopen(real_address , "w");
+//    putwin(text_part , file);
+//    fclose(file);
+}
+void del_all_attrs(){
+    for(int i = 0 ; i < file_lines ; i++){
+        wmove(text_part, i, 0);
+        wchgat(text_part , -1, A_NORMAL, 0, NULL);
+    }
+    wmove(text_part , 0 , 0);
+}
+void movement(char check_mode , int specifier , int* curr_x){
+    int x, y;
+    if (check_mode == (int) 'a') {
+        getyx(text_part, y, x);
+        //x--;
+        if(x > 0){
+            if(specifier){
+                curr_x[0] --;
+                if((mvwinch(text_part , y , x - 1) & A_ATTRIBUTES) == A_STANDOUT) {
+                    wmove(text_part , y  , x);
+                    wchgat(text_part , 1, A_NORMAL, 0, NULL);
+
+                }else if((mvwinch(text_part , y , x ) & A_ATTRIBUTES) != A_STANDOUT)
+                    wchgat(text_part, 1 , A_STANDOUT , 0 , NULL);
+            }
+            wmove(text_part, y, x - 1);
+            wrefresh(text_part);
+        }
+//        if( (winch(new_line_position) & A_CHARTEXT )!= 'n') {
+//            wrefresh(text_part);
+//        } else{
+//            wmove(text_part, y, x);
+//            wrefresh(text_part);
+//        }
+    } else if (check_mode == (int) 'd') {
+        getyx(text_part, y, x);
+        //x++;
+        if( (mvwinch(new_line_position , y , x) & A_CHARTEXT )!= 'n') {
+            if(specifier){
+                curr_x[0] ++;
+                if((mvwinch(text_part , y , x + 1) & A_ATTRIBUTES) == A_STANDOUT) {
+                    wmove(text_part , y  , x);
+                    wchgat(text_part , 1, A_NORMAL, 0, NULL);
+                }else if((mvwinch(text_part, y , x ) & A_ATTRIBUTES) != A_STANDOUT)
+                    wchgat(text_part, 1 , A_STANDOUT , 0 , NULL);
+            }
+            wmove(text_part, y, x+1);
+            wrefresh(text_part);
+        }
+    } else if (check_mode == (int) 's') {
+        getyx(text_part, y, x);
+        if((y+1)<file_lines) {
+            //wmove(text_part, y+1, x);
+            int i = 0;
+            for (; (mvwinch(new_line_position, y + 1, x - i) & A_CHARTEXT) == ' ' && x != i; ++i) {}
+            if(x == i && (mvwinch(new_line_position, y + 1, x - i) & A_CHARTEXT) == ' ' )
+                wmove(text_part, y+1, x);
+            else
+                wmove(text_part , y + 1 ,x - i );
+        }
+        wrefresh(text_part);
+
+    } else if (check_mode == (int) 'w') {
+        getyx(text_part, y, x);
+        if(y > 0){
+            int i = 0;
+            for (; (mvwinch(new_line_position, y - 1, x - i) & A_CHARTEXT) == ' ' && x != i; ++i) {}
+            if (x == i && (mvwinch(new_line_position, y - 1, x - i) & A_CHARTEXT) == ' ')
+                wmove(text_part, y - 1, x);
+            else
+                wmove(text_part, y - 1, x - i);
+
+            wrefresh(text_part);
+        }
+    }
+}
+void get_command() {
+    char command[30];
+    wgetstr(command_part , command_line);
+    command_line[strlen(command_line)] = '\n';
+    command_file = fopen("../../command.txt"  , "w+");
+    fputs(command_line , command_file);
+    fclose(command_file);
+    command_file = fopen("../../command.txt"  , "r");
+    fscanf(command_file , "%s", command);
+
+    if (!strcmp(command, "exit"))
+    {endwin();}
+    else if (!strcmp(command, "createfile")) {
+        create_file();
+    } else if (!strcmp(command, "insertstr")) {
+        insertstr();
+    } else if (!strcmp(command, "cat")) {
+        cat();
+    } else if (!strcmp(command, "removestr")) {
+        remove_or_copy_or_cutstr(0);
+    } else if (!strcmp(command, "copystr")) {
+        remove_or_copy_or_cutstr(1);
+    } else if (!strcmp(command, "cutstr")) {
+        remove_or_copy_or_cutstr(2);
+    } else if (!strcmp(command, "pastestr")) {
+        pastestr();
+    } else if (!strcmp(command, "find")) {
+        find();
+    } else if (!strcmp(command, "replace")) {
+        replace();
+    } else if (!strcmp(command, "grep")) {
+        grep();
+    } else if (!strcmp(command, "undo")) {
+        undo();
+    } else if (!strcmp(command, "autoindent")) {
+        autoindent();
+    } else if (!strcmp(command, "compare")) {
+        compare();
+    } else if (!strcmp(command, "tree")) {
+        tree();
+    } else if (!strcmp(command, "save")) {
+        save(0);
+    } else if (!strcmp(command, "saveas")) {
+        save(1);
+    }  else if (!strcmp(command, "open")) {
+        open();
+    } else {
+        invalid_input();
+        wprintw(command_part , "invalid command\n");
+    }
+    wrefresh(command_part);
+    wrefresh(status);
+    fclose(command_file);
+
+}
 int main(){
-    get_command();
+    int y = 1 , x = 2;
+    int width = COLS ;
+    char clipboard[1000];
+    initscr();
+    cbreak();
+    scrollok(stdscr, TRUE);
+    refresh();
+    system("/bin/stty raw");
+    start_color();
+    text_part = newwin(height, width , y , x );
+    command_part = newwin(5 , width , height + 2 , 0 );
+    new_line_position = newwin(height, width , y , x );
+    status = newwin(1 , width , height + 1 , 0);
+    num = newwin(height , 2 , 1 , 0);
+    waddch( new_line_position , 'n');
+    keypad(text_part , TRUE);
+    write_nums();
+
+    move(y, x);
+    refresh();
+    mode_write();
+    noecho();
+    while (1){
+
+        int check_mode = getch();
+
+        if (check_mode == (int) 'e') {
+            endwin();
+            break;
+        }else if(check_mode == (int) 'n'){
+            wrefresh(new_line_position);
+            usleep(5000000);
+            wrefresh(text_part);
+        }else if(check_mode == (int) '/'){
+
+        }else if(check_mode == (int) 'p'){
+            if(clipboard != NULL){
+                getyx(text_part , y , x);
+                winsstr(text_part, clipboard);
+                mvwinsnstr( new_line_position , y , x , "                                                                                                                " , strlen(clipboard));
+            }
+            wrefresh(text_part);
+        }else if (check_mode == (int) ':' ) {
+            getyx(text_part , y , x);
+            echo();
+            wmove(command_part , 0 , 0);
+            wprintw( command_part , ":");
+            wrefresh(command_part);
+            get_command();
+            usleep(5000000);
+            wclear(command_part);
+            mode_write();
+            wrefresh(command_part);
+            noecho();
+            wmove(text_part , y , x);
+            wrefresh(text_part);
+        }else if (check_mode == (int) 'i') {
+            mvwaddch(status , 0 , 9 , '+');
+            mode = 2;
+            mode_write();
+            //echo();
+            while (1){
+
+                int input = wgetch(text_part);
+                if(input == 27 )
+                    break;
+                else if(input == (int) '\n' ) {
+                    file_lines++;
+                    getyx(text_part , y , x);
+                    write_nums();
+                    char prev_n[1000];
+                    wmove(new_line_position , y , x);
+                    winstr(new_line_position , prev_n);
+                    wclrtoeol(new_line_position);
+                    winsch(new_line_position , 'n');
+                    mvwaddch(new_line_position, y , x + 1, '\n');
+                    winsertln(new_line_position);
+                    waddstr(new_line_position , prev_n);
+
+                    char remaining[1000];
+                    wmove(text_part , y , x);
+                    winstr(text_part , remaining);
+                    wclrtoeol(text_part);
+                    waddch(text_part , '\n');
+                    winsertln(text_part);
+                    waddstr(text_part , remaining);
+                    wmove(text_part, y+1 , 0 );
+                }else{
+                    getyx(text_part , y , x);
+                    mvwinsch(new_line_position , y , x , ' ');
+                    winsch(text_part , input);
+                    wmove(text_part, y , x+1);
+                }
+                wrefresh(text_part);
+            }
+            wrefresh(text_part);
+            mode = 0;
+            mode_write();
+        }else if (check_mode == (int) 'v') {
+            int x_old , y_old;
+            getyx(text_part , y_old , x_old);
+            int curr_x[1];
+            curr_x[0] = x_old;
+            mode = 1;
+            mode_write();
+            wattron(text_part , A_STANDOUT);
+            noecho();
+            while (1){
+                int input = wgetch(text_part);
+                movement(input , 1 , curr_x);
+                if(input == 27 ) {
+                    del_all_attrs();
+                    break;
+                }else if(input == (int) 't' ) {
+                    for (int i = x_old ; i <curr_x[0] ; i++) {
+                        clipboard[i - x_old] = (mvwinch(text_part , y_old , x_old) & A_CHARTEXT);
+                        wdelch(text_part);
+                        mvwdelch(new_line_position , y_old , x_old);
+                        clipboard[i - x_old + 1] = '\0';
+                    }
+                    mvwaddstr(command_part, 0 , 0 , clipboard);
+                    wprintw(command_part , " %d %d"  , curr_x[0] , x_old);
+                    wrefresh(command_part);
+                    del_all_attrs();
+                    break;
+                }else if(input == (int) 'c' ){
+                    for (int i = x_old ; i <curr_x[0] ; i++) {
+                        clipboard[i - x_old] = (mvwinch(text_part , y_old , i) & A_CHARTEXT);
+                        clipboard[i - x_old + 1] = '\0';
+                    }
+//                    mvwaddstr(command_part, 0 , 0 , clipboard);
+//                    wprintw(command_part , " %d %d"  , curr_x[0] , x_old);
+//                    wrefresh(command_part);
+                    del_all_attrs();
+                    break;
+                }
+                wrefresh(text_part);
+            }
+            wrefresh(text_part);
+            mode = 0;
+            mode_write();
+            wattroff(text_part , A_STANDOUT);
+        }
+        movement(check_mode , 0 , NULL);
+        //refresh();
+    }
+    //get_command();
     return(0);
 }
