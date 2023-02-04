@@ -110,8 +110,7 @@ char * last_version_address(char real_address[]){
     filename[0] = '.';
     return version_address;
 }
-
-char * create_tmp_file(char real_address[]){
+void create_last_version(char real_address[]){
     char *version_address = last_version_address(real_address);
     FILE * file;
     FILE * last_version;
@@ -127,8 +126,21 @@ char * create_tmp_file(char real_address[]){
     //   tmp[j] = '\0';
     fclose(file);
     fclose(last_version);
+}
+char * create_tmp_file(char real_address[]){
+    FILE * file;
+    file = fopen(real_address, "r+");
+    char *tmp =(char *) calloc(10000000 , sizeof(char ));
+    int j = 0;
+    for (; 1 ; ++j) {
+        tmp[j]= fgetc(file);
+        if(tmp[j] == EOF)break;
+    }
+    //   tmp[j] = '\0';
+    fclose(file);
     return tmp;
 }
+
 int access_to_position(char *tmp , int line , int pos){
     if(line == 1)
         pos--;
@@ -256,7 +268,7 @@ void insertstr(){
             printf("invalid arguments for insertstr\n");
         }
     }
-
+    create_last_version(real_address);
     insert_str_infile(real_address , input_str , line , pos);
 
     printf("done\n");
@@ -328,6 +340,7 @@ void remove_or_copy_or_cutstr(int specifier){  // 0 for remove 1 for copy 2 for 
 
     }
     scanf(" -%c" , &direction);
+    create_last_version(real_address);
     if(specifier == 0)
         remove_str_fromfile(real_address, size, line , pos , direction);
     else if(specifier == 1)
@@ -374,6 +387,7 @@ void pastestr(){
     }
     char *saved_data = create_tmp_file("./clipboard.txt");
     saved_data[strlen(saved_data) -1] = '\0';
+    create_last_version(real_address);
     insert_str_infile(real_address , saved_data , line , pos);
 
     printf("Done\n");
@@ -625,7 +639,7 @@ void find(){
 
         token = strtok(NULL, s);
     }
-
+    create_last_version(real_address);
     find_by_chars(input_str , real_address , options_specifier , word_flag, at_size , 0 , NULL);
 
 
@@ -695,7 +709,7 @@ void replace(){
         }
         token = strtok(NULL, s);
     }
-
+    create_last_version(real_address);
     find_by_chars(input_str , real_address , options_specifier , 0 , at_size , 1 , input_str2);
     printf("Done\n");
 }
@@ -703,6 +717,7 @@ void search_line_by_line(int specifier , char all_address[20][50] , char  input_
     int counter = 0;
     for (int i = 0; i < 20 && all_address[i][0] != '\0'; ++i) {
         char *file1 = create_tmp_file(all_address[i]);
+        create_last_version(all_address[i]);
 
         file1[strlen(file1) - 1] = '\0';
 
@@ -819,7 +834,9 @@ void undo(){
         }
     char * version_address = last_version_address(real_address);
     char * last_data = create_tmp_file(version_address);
+    create_last_version(version_address);
     create_tmp_file(real_address);
+    create_last_version(real_address);
     last_data[strlen(last_data) - 1] = '\0';
     FILE *file = fopen(real_address , "w");
     fputs(last_data , file);
@@ -830,8 +847,10 @@ void undo(){
 }
 void compare_line_by_line(int specifier , char address1[] , char  address2[]){
     char * file1 = create_tmp_file(address1);
+    create_last_version(address1);
     file1[strlen(file1) -1] = '\0';
     char * file2 = create_tmp_file(address2);
+    create_last_version(address1);
     file2[strlen(file2) -1] = '\0';
     const char s[2] = "\n\0";
     char * file1_token;
@@ -913,6 +932,7 @@ void compare(){
 }
 void indent(char *real_address){
     char *tmp = create_tmp_file(real_address);
+    create_last_version(real_address);
     tmp[strlen(tmp) -1 ]= '\0';
     int indent_counter = 0;
     for (int i = 0; tmp[i] != '\0' ; ++i) {
