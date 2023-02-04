@@ -207,7 +207,6 @@ void create_file(){
 //    getch();
 
     fscanf(command_file , "%s" , subcommand);
-    wprintw(command_part , "\n########%s", subcommand);
     if (!strcmp(subcommand, "--file")){
 
         get_address(real_address);
@@ -1086,50 +1085,8 @@ void write_nums(){
     wattroff(num , COLOR_PAIR(2));
     wrefresh(num);
 }
-void open(){
-    wclear(text_part);
-    wclear(new_line_position);
-    char subcommand[10];
-    char real_address[50] = "../";
-    fscanf(command_file , "%s" , subcommand);
-
-    if (!strcmp(subcommand, "--file")){
-
-        get_address(real_address);
-        if (access(real_address, F_OK) != 0) {
-            invalid_input();
-            wprintw(command_part , "no such file or directory\n");
-            return;
-        }
-        //mvwaddch(status , 0 , 9 , ' ');
-        wmove(status , 0 , 9);
-        wclrtoeol(status);
-        wmove(status , 0 , 11);
-        waddstr(status , real_address);
-        wrefresh(status);
-        char* tmp = create_tmp_file(real_address);
-        tmp[strlen(tmp) - 1] = '\0';
-        file_lines = 0;
-        for (int i = 0 , j= 0 ; tmp[i] != '\0' ; ++i) {
-            if(tmp[i] == '\n') {
-                mvwaddch(new_line_position , file_lines , i - j - (1*(file_lines != 0)) , 'n' );
-                j = i ;
-                file_lines++;
-            }
-        }
-        write_nums();
-        wmove(text_part , 0 , 0);
-        waddstr( text_part , tmp);
-        wmove(text_part , 0 , 0);
-        wrefresh(text_part);
-
-    } else {
-        invalid_input();
-        wprintw(command_part , "invalid arguments for open\n");
-    }
-}
-void save(int specifier){
-    char real_address[50] = {'\0'};
+char * save(int specifier){
+    char *real_address = calloc(50 , sizeof(char ));
     wmove(status , 0 , 11);
     for (int i = 0; 1 ; ++i) {
         char tmp = winch(status) & A_CHARTEXT;
@@ -1140,7 +1097,8 @@ void save(int specifier){
             if(i == 0) {
                 real_address[0] = '.' ; real_address[1] = '.' ;
                 char file_address[50];
-                mvwprintw(command_part, 1 , 0 , "pleas enter a name and address\n");
+                mvwprintw(command_part, 1 , 0 , "pleas enter an address to save\n");
+                wrefresh(command_part);
                 wgetstr(command_part , file_address);
                 strcat(real_address , file_address);
                 mvwaddstr(status , 0 , 11 , real_address);
@@ -1158,7 +1116,6 @@ void save(int specifier){
         strcat(real_address , name);
     }
 
-    wprintw( command_part , "#%s\n" , real_address);
     FILE * file = fopen(real_address , "w");
     for (int j = 0; j < file_lines ; ++j) {
         char line_val[100];
@@ -1170,29 +1127,97 @@ void save(int specifier){
         fputc('\n' , file);
     }
     fclose(file);
+    wprintw(command_part ,"Done\n");
+    wrefresh(command_part);
     mvwaddch(status , 0 , 9 , ' ');
     wmove(text_part , 0 , 0 );
+    wrefresh(command_part);
+    return real_address;
+}
+void open(int specifier , char * current_address){
 
+    char subcommand[10];
+    char real_address[50] = "../";
+    if(specifier){
+        strcpy(real_address , current_address);
+        real_address[strlen(current_address)] = '\0';
+    } else{
+        fscanf(command_file, "%s", subcommand);
+        if (!strcmp(subcommand, "--file")) {
 
-//    if(strcmp(real_address , "../")){}
-//    else
-//    if (real_address[0] == '\0'){
-//        wprintw(command_part , "please choose an address to save\n" );
-//        get_address(real_address);
-//    }
-//    else{
-//
-//    }
-//    FILE * file = fopen(real_address , "w");
-//    putwin(text_part , file);
-//    fclose(file);
+            get_address(real_address);
+            if (access(real_address, F_OK) != 0) {
+                invalid_input();
+                wprintw(command_part, "no such file or directory\n");
+                return;
+            }
+            //mvwaddch(status , 0 , 9 , ' ');
+            wmove(status, 0, 9);
+            if ((winch(status) & A_CHARTEXT) == '+') {
+                mvwprintw(command_part, 1, 0, "your file has not been saved ");
+                wrefresh(command_part);
+                save(0);
+                wmove(status, 0, 9);
+            }
+
+        } else {
+            invalid_input();
+            wprintw(command_part, "invalid arguments for open\n");
+            return;
+        }
+    }
+    wclear(text_part);
+    wclear(new_line_position);
+    wclrtoeol(status);
+    wmove(status , 0 , 11);
+    waddstr(status , real_address);
+    wrefresh(status);
+    char* tmp = create_tmp_file(real_address);
+    tmp[strlen(tmp) - 1] = '\0';
+    file_lines = 0;
+    for (int i = 0 , j= 0 ; tmp[i] != '\0' ; ++i) {
+        if(tmp[i] == '\n') {
+            mvwaddch(new_line_position , file_lines , i - j - (1*(file_lines != 0)) , 'n' );
+            j = i ;
+            file_lines++;
+        }
+    }
+    write_nums();
+    wmove(text_part , 0 , 0);
+    waddstr( text_part , tmp);
+    wmove(text_part , 0 , 0);
+    wrefresh(text_part);
+}
+
+int find_in_scr(char * to_be_searched , int find_pos[10][2] ){
+    int k = 0;
+    for (int j = 0; j < file_lines ; ++j) {
+        char * finded;
+        char line_val[100];
+        int i = 0;
+        for (; (mvwinch(new_line_position, j ,  i) & A_CHARTEXT) != 'n' ; ++i) {}
+        wmove(text_part, j, 0);
+        winnstr(text_part , line_val , i);
+        if((finded = strstr(line_val , to_be_searched)) != NULL){
+            wrefresh(command_part);
+            find_pos[k][0]= j;
+            find_pos[k][1] = strlen(line_val) - strlen(finded);
+            mvwchgat(text_part , j , strlen(line_val) - strlen(finded) , strlen(to_be_searched) , A_STANDOUT , 0 , NULL );
+            wrefresh(text_part);
+            k++;
+        }
+    }
+    return k;
 }
 void del_all_attrs(){
+    int y = 0 , x = 0;
+    getyx(text_part , y , x);
     for(int i = 0 ; i < file_lines ; i++){
         wmove(text_part, i, 0);
         wchgat(text_part , -1, A_NORMAL, 0, NULL);
     }
-    wmove(text_part , 0 , 0);
+    wmove(text_part , y , x);
+    wrefresh(text_part);
 }
 void movement(char check_mode , int specifier , int* curr_x){
     int x, y;
@@ -1305,7 +1330,7 @@ void get_command() {
     } else if (!strcmp(command, "saveas")) {
         save(1);
     }  else if (!strcmp(command, "open")) {
-        open();
+        open(0 , NULL);
     } else {
         invalid_input();
         wprintw(command_part , "invalid command\n");
@@ -1317,8 +1342,10 @@ void get_command() {
 }
 int main(){
     int y = 1 , x = 2;
+    int find_pos[10][2] , k , next_k = 0;
     int width = COLS ;
-    char clipboard[1000];
+    char * ptr;
+    char clipboard[1000] ;
     initscr();
     cbreak();
     scrollok(stdscr, TRUE);
@@ -1345,13 +1372,33 @@ int main(){
         if (check_mode == (int) 'e') {
             endwin();
             break;
-        }else if(check_mode == (int) 'n'){
-            wrefresh(new_line_position);
-            usleep(5000000);
-            wrefresh(text_part);
-        }else if(check_mode == (int) '/'){
+        }else if(check_mode == (int) 'n' && k != 0){
+            next_k ++;
+            if(next_k <= k){
+                wmove(text_part, find_pos[next_k][0], find_pos[next_k][1]);
+                wrefresh(text_part);
+            }
 
+        }else if(check_mode == (int) 'u'){
+            ptr  = save(0);
+            indent(ptr);
+            open(1  , ptr);
+        }else if(check_mode == (int) '/'){
+            getyx(text_part , y , x);
+            find_pos[0][0] = y , find_pos[0][1] = x;
+            echo();
+            char to_be_searched[100];
+            wmove(command_part , 0 , 0);
+            wprintw( command_part , "/");
+            wrefresh(command_part);
+            wgetstr(command_part , to_be_searched);
+            k = find_in_scr(to_be_searched , find_pos );
+            wmove(text_part , find_pos[0][0] , find_pos[0][1]);
+            wrefresh(text_part);
+            noecho();
+            wclear(command_part);
         }else if(check_mode == (int) 'p'){
+            del_all_attrs();
             if(clipboard != NULL){
                 getyx(text_part , y , x);
                 winsstr(text_part, clipboard);
@@ -1359,6 +1406,7 @@ int main(){
             }
             wrefresh(text_part);
         }else if (check_mode == (int) ':' ) {
+            del_all_attrs();
             getyx(text_part , y , x);
             echo();
             wmove(command_part , 0 , 0);
@@ -1373,6 +1421,7 @@ int main(){
             wmove(text_part , y , x);
             wrefresh(text_part);
         }else if (check_mode == (int) 'i') {
+            del_all_attrs();
             mvwaddch(status , 0 , 9 , '+');
             mode = 2;
             mode_write();
@@ -1415,6 +1464,7 @@ int main(){
             mode = 0;
             mode_write();
         }else if (check_mode == (int) 'v') {
+            del_all_attrs();
             int x_old , y_old;
             getyx(text_part , y_old , x_old);
             int curr_x[1];
@@ -1436,9 +1486,6 @@ int main(){
                         mvwdelch(new_line_position , y_old , x_old);
                         clipboard[i - x_old + 1] = '\0';
                     }
-                    mvwaddstr(command_part, 0 , 0 , clipboard);
-                    wprintw(command_part , " %d %d"  , curr_x[0] , x_old);
-                    wrefresh(command_part);
                     del_all_attrs();
                     break;
                 }else if(input == (int) 'c' ){
