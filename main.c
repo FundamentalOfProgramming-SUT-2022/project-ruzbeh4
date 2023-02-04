@@ -12,7 +12,9 @@
 
 char  command_line[100] ;
 WINDOW * text_part;
+WINDOW * last_text_part;
 WINDOW * command_part;
+WINDOW * last_new_line_position;
 WINDOW * status;
 FILE * command_file;
 WINDOW * new_line_position;
@@ -120,8 +122,7 @@ char * last_version_address(char real_address[]){
     filename[0] = '.';
     return version_address;
 }
-
-char * create_tmp_file(char real_address[]){
+void create_last_version(char real_address[]){
     char *version_address = last_version_address(real_address);
     FILE * file;
     FILE * last_version;
@@ -137,6 +138,18 @@ char * create_tmp_file(char real_address[]){
     //   tmp[j] = '\0';
     fclose(file);
     fclose(last_version);
+}
+char * create_tmp_file(char real_address[]){
+    FILE * file;
+    file = fopen(real_address, "r+");
+    char *tmp =(char *) calloc(10000000 , sizeof(char ));
+    int j = 0;
+    for (; 1 ; ++j) {
+        tmp[j]= fgetc(file);
+        if(tmp[j] == EOF)break;
+    }
+    //   tmp[j] = '\0';
+    fclose(file);
     return tmp;
 }
 int access_to_position(char *tmp , int line , int pos){
@@ -156,6 +169,7 @@ int access_to_position(char *tmp , int line , int pos){
 void insert_str_infile(char real_address[50], char input_str[100] , int line , int pos){
 
     char *tmp = create_tmp_file(real_address);
+  //  create_last_version(real_address);
   //  last_version_address(real_address);
     int i = access_to_position( tmp , line , pos);
 
@@ -168,6 +182,7 @@ void insert_str_infile(char real_address[50], char input_str[100] , int line , i
 }
 void remove_str_fromfile(char real_address[50], int size, int line , int pos , char direction){
     char *tmp = create_tmp_file(real_address);
+    //create_last_version(real_address);
     int i = access_to_position( tmp , line , pos);
 
     if(direction == 'f'){
@@ -187,6 +202,7 @@ void remove_str_fromfile(char real_address[50], int size, int line , int pos , c
 void copy_str_fromfile(char real_address[50], int size, int line , int pos , char direction){
     char *saved_data = (char *)calloc(10000 , sizeof (char ));
     char *tmp = create_tmp_file(real_address);
+    create_last_version(real_address);
     int i = access_to_position( tmp , line , pos);
 
     if(direction == 'f'){
@@ -267,7 +283,7 @@ void insertstr(){
             wprintw(command_part , "invalid arguments for insertstr\n");
         }
     }
-
+    create_last_version(real_address);
     insert_str_infile(real_address , input_str , line , pos);
 
     wprintw(command_part , "done\n");
@@ -339,6 +355,7 @@ void remove_or_copy_or_cutstr(int specifier){  // 0 for remove 1 for copy 2 for 
 
     }
     fscanf(command_file , " -%c" , &direction);
+    create_last_version(real_address);
     if(specifier == 0)
         remove_str_fromfile(real_address, size, line , pos , direction);
     else if(specifier == 1)
@@ -385,6 +402,7 @@ void pastestr(){
     }
     char *saved_data = create_tmp_file("./clipboard.txt");
     saved_data[strlen(saved_data) -1] = '\0';
+    create_last_version(real_address);
     insert_str_infile(real_address , saved_data , line , pos);
 
     wprintw(command_part , "Done\n");
@@ -412,6 +430,7 @@ int word_counter(char * tmp , int index){
 }
 void find_by_chars(char input_data[] , char real_address[] , int specifier ,int byword_flag ,  int size , int is_replace , char to_be_replaced[]){
     char * tmp = create_tmp_file(real_address);
+   // create_last_version(real_address);
     char * star_pos;
     int counter = 0 , actual_pos = 0;
     int ans[50] = {0} , eo_ans[50] = {0} ;
@@ -636,7 +655,7 @@ void find(){
 
         token = strtok(NULL, s);
     }
-
+    create_last_version(real_address);
     find_by_chars(input_str , real_address , options_specifier , word_flag, at_size , 0 , NULL);
 
 
@@ -706,7 +725,7 @@ void replace(){
         }
         token = strtok(NULL, s);
     }
-
+    create_last_version(real_address);
     find_by_chars(input_str , real_address , options_specifier , 0 , at_size , 1 , input_str2);
     wprintw(command_part , "Done\n");
 }
@@ -714,6 +733,7 @@ void search_line_by_line(int specifier , char all_address[20][50] , char  input_
     int counter = 0;
     for (int i = 0; i < 20 && all_address[i][0] != '\0'; ++i) {
         char *file1 = create_tmp_file(all_address[i]);
+        create_last_version(all_address[i]);
 
         file1[strlen(file1) - 1] = '\0';
 
@@ -830,7 +850,9 @@ void undo(){
         }
     char * version_address = last_version_address(real_address);
     char * last_data = create_tmp_file(version_address);
+    create_last_version(version_address);
     create_tmp_file(real_address);
+    create_last_version(real_address);
     last_data[strlen(last_data) - 1] = '\0';
     FILE *file = fopen(real_address , "w");
     fputs(last_data , file);
@@ -841,8 +863,10 @@ void undo(){
 }
 void compare_line_by_line(int specifier , char address1[] , char  address2[]){
     char * file1 = create_tmp_file(address1);
+    create_last_version(address1);
     file1[strlen(file1) -1] = '\0';
     char * file2 = create_tmp_file(address2);
+    create_last_version(address2);
     file2[strlen(file2) -1] = '\0';
     const char s[2] = "\n\0";
     char * file1_token;
@@ -924,6 +948,7 @@ void compare(){
 }
 void indent(char *real_address){
     char *tmp = create_tmp_file(real_address);
+    create_last_version(real_address);
     tmp[strlen(tmp) -1 ]= '\0';
     int indent_counter = 0;
     for (int i = 0; tmp[i] != '\0' ; ++i) {
@@ -1050,6 +1075,7 @@ void tree(){
 int file_lines = 1;
 //int width  ;
 int height = 30;
+int width;
 int mode = 0;
 void mode_write(){
     int o_x , o_y;
@@ -1080,11 +1106,12 @@ void write_nums(){
         if(i + 1 <= file_lines)
             wprintw(num, "%d", i + 1);
         else
-            wprintw(num, " ");
+            wprintw(num, "  ");
     }
     wattroff(num , COLOR_PAIR(2));
     wrefresh(num);
 }
+
 char * save(int specifier){
     char *real_address = calloc(50 , sizeof(char ));
     wmove(status , 0 , 11);
@@ -1141,7 +1168,7 @@ void open(int specifier , char * current_address){
     if(specifier){
         strcpy(real_address , current_address);
         real_address[strlen(current_address)] = '\0';
-    } else{
+    }else{
         fscanf(command_file, "%s", subcommand);
         if (!strcmp(subcommand, "--file")) {
 
@@ -1154,7 +1181,7 @@ void open(int specifier , char * current_address){
             //mvwaddch(status , 0 , 9 , ' ');
             wmove(status, 0, 9);
             if ((winch(status) & A_CHARTEXT) == '+') {
-                mvwprintw(command_part, 1, 0, "your file has not been saved ");
+                mvwprintw(command_part, 1, 0, "your file has not been saved & ");
                 wrefresh(command_part);
                 save(0);
                 wmove(status, 0, 9);
@@ -1173,8 +1200,13 @@ void open(int specifier , char * current_address){
     waddstr(status , real_address);
     wrefresh(status);
     char* tmp = create_tmp_file(real_address);
-    tmp[strlen(tmp) - 1] = '\0';
+    create_last_version(real_address);
     file_lines = 0;
+    if(strlen(tmp ) == 1){
+        mvwaddch(new_line_position , 0 , 0 , 'n' );
+        file_lines++;
+    }
+    tmp[strlen(tmp) - 1] = '\0';
     for (int i = 0 , j= 0 ; tmp[i] != '\0' ; ++i) {
         if(tmp[i] == '\n') {
             mvwaddch(new_line_position , file_lines , i - j - (1*(file_lines != 0)) , 'n' );
@@ -1289,10 +1321,10 @@ void get_command() {
     char command[30];
     wgetstr(command_part , command_line);
     command_line[strlen(command_line)] = '\n';
-    command_file = fopen("../../command.txt"  , "w+");
+    command_file = fopen("../.command.txt"  , "w+");
     fputs(command_line , command_file);
     fclose(command_file);
-    command_file = fopen("../../command.txt"  , "r");
+    command_file = fopen("../.command.txt"  , "r");
     fscanf(command_file , "%s", command);
 
     if (!strcmp(command, "exit"))
@@ -1343,8 +1375,10 @@ void get_command() {
 int main(){
     int y = 1 , x = 2;
     int find_pos[10][2] , k , next_k = 0;
-    int width = COLS ;
+    width = COLS ;
     char * ptr;
+    char * ptr2;
+    char * undo_file;
     char clipboard[1000] ;
     initscr();
     cbreak();
@@ -1353,8 +1387,10 @@ int main(){
     system("/bin/stty raw");
     start_color();
     text_part = newwin(height, width , y , x );
+    last_text_part = newwin(height, width , y , x);
     command_part = newwin(5 , width , height + 2 , 0 );
     new_line_position = newwin(height, width , y , x );
+    last_new_line_position = newwin(height, width , y , x );
     status = newwin(1 , width , height + 1 , 0);
     num = newwin(height , 2 , 1 , 0);
     waddch( new_line_position , 'n');
@@ -1380,9 +1416,29 @@ int main(){
             }
 
         }else if(check_mode == (int) 'u'){
+//            copywin(last_text_part , text_part , 0 , 0 , 0 , 0 ,height , width , FALSE);
+//            copywin(last_new_line_position ,new_line_position, 0 , 0 , 0 , 0 ,height , width , FALSE);
+//            wrefresh(text_part);
+            ptr = NULL;
+            ptr  = save(0);
+            ptr2 = last_version_address(ptr);
+            char * tmp = create_tmp_file(ptr2);
+            create_last_version(ptr2);
+            tmp[strlen(tmp) - 1 ] = '\0';
+            FILE * current = fopen(ptr , "w");
+            fputs(tmp , current);
+            fclose(current);
+            open(1 , ptr);
+            wclear(command_part);
+            wrefresh(command_part);
+            wmove(text_part , 0 , 0 );
+            wrefresh(text_part);
+        }else if(check_mode == (int) '='){
             ptr  = save(0);
             indent(ptr);
             open(1  , ptr);
+        }else if(check_mode == (int) 'o'){
+            wrefresh(new_line_position);
         }else if(check_mode == (int) '/'){
             getyx(text_part , y , x);
             find_pos[0][0] = y , find_pos[0][1] = x;
